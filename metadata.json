@@ -1,0 +1,8 @@
+{
+  "name": "CITRA NEGARA LMS",
+  "description": "Sistem Ulangan Online (CBT) & E-Learning Sekolah berbasis Node.js dan MongoDB Atlas dengan kontrol RBAC lengkap untuk Admin, Guru, Siswa, Kurikulum, dan Kepala Sekolah.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
