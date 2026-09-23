@@ -1024,9 +1024,10 @@ export const QuizCBTView: React.FC<QuizCBTViewProps> = ({
               <button
                 type="button"
                 onClick={() => handleDelete(deletingQuizId)}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-extrabold transition shadow-md shadow-rose-200 cursor-pointer"
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-extrabold transition shadow-md shadow-rose-200 flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                Ya, Hapus Kuis
+                <Trash2 className="w-3.5 h-3.5" />
+                Ya, Hapus Data
               </button>
             </div>
           </div>

@@ -90,6 +90,23 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   // Selected User for Full Biodata Modal
   const [selectedUserForBio, setSelectedUserForBio] = useState<User | null>(null);
 
+  // Modal Konfirmasi Hapus Data Pengguna (Pop-up Konfirmasi / Batal)
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
+    try {
+      await onDeleteUser(userToDelete.id);
+      setUserToDelete(null);
+    } catch (err) {
+      console.error('Failed to delete user:', err);
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
   // Sync initial sub tab when props change
   useEffect(() => {
     if (initialSubTab) {
@@ -1040,8 +1057,8 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                     </div>
 
                     <button
-                      onClick={() => onDeleteUser(std.id)}
-                      className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-xl transition"
+                      onClick={() => setUserToDelete(std)}
+                      className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                       title="Hapus Akun Siswa"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1101,8 +1118,8 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                               <Edit3 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => onDeleteUser(std.id)}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition"
+                              onClick={() => setUserToDelete(std)}
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                               title="Hapus Akun Siswa"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1253,8 +1270,8 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                     </div>
 
                     <button
-                      onClick={() => onDeleteUser(tch.id)}
-                      className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-xl transition"
+                      onClick={() => setUserToDelete(tch)}
+                      className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                       title="Hapus Akun Guru"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1314,8 +1331,8 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                               <Edit3 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => onDeleteUser(tch.id)}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition"
+                              onClick={() => setUserToDelete(tch)}
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                               title="Hapus Akun Guru"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1431,8 +1448,8 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                   </div>
 
                   <button
-                    onClick={() => onDeleteUser(kep.id)}
-                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition"
+                    onClick={() => setUserToDelete(kep)}
+                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                     title="Hapus Akun Kepsek"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -1543,8 +1560,8 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                   </div>
 
                   <button
-                    onClick={() => onDeleteUser(kur.id)}
-                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition"
+                    onClick={() => setUserToDelete(kur)}
+                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                     title="Hapus Akun Kurikulum"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -1655,8 +1672,8 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                   </div>
 
                   <button
-                    onClick={() => onDeleteUser(ad.id)}
-                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition"
+                    onClick={() => setUserToDelete(ad)}
+                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                     title="Hapus Akun Admin"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -2076,6 +2093,59 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: POP-UP KONFIRMASI / BATAL HAPUS DATA PENGGUNA                      */}
+      {/* ========================================================================= */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-xs">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <h3 className="text-base font-extrabold text-slate-900">
+                Konfirmasi Hapus Data Akun?
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Apakah Anda yakin ingin menghapus akun{' '}
+                <strong className="text-slate-800 font-bold">{userToDelete.name}</strong>{' '}
+                ({userToDelete.role === 'student' ? `Siswa ${userToDelete.class || ''}` : userToDelete.role === 'teacher' ? `Guru ${userToDelete.subjectTaught || ''}` : userToDelete.role === 'kepalasekolah' ? 'Kepala Sekolah' : userToDelete.role === 'kurikulum' ? 'Kurikulum' : 'Admin IT'})?
+              </p>
+              <div className="bg-rose-50 text-rose-700 border border-rose-100 p-2.5 rounded-xl text-[11px] text-left mt-2">
+                ⚠️ <strong>Perhatian:</strong> Data akun, profil, dan riwayat yang terkait akan dihapus dari server secara permanen.
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setUserToDelete(null)}
+                disabled={isDeletingUser}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteUser}
+                disabled={isDeletingUser}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold rounded-xl transition shadow-md shadow-rose-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingUser ? (
+                  'Menghapus...'
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Ya, Hapus Data
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

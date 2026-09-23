@@ -688,9 +688,16 @@ export const AdminSubjectsTab: React.FC<AdminSubjectsTabProps> = ({
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold rounded-xl transition shadow-md shadow-rose-200"
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold rounded-xl transition shadow-md shadow-rose-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                {isDeleting ? 'Menghapus...' : 'Ya, Hapus Mapel'}
+                {isDeleting ? (
+                  'Menghapus...'
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Ya, Hapus Data
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -874,16 +874,17 @@ export const AssessmentsView: React.FC<AssessmentsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setDeletingAssessmentId(null)}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="button"
                 onClick={() => handleDelete(deletingAssessmentId)}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-extrabold transition shadow-md shadow-rose-200"
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-extrabold transition shadow-md shadow-rose-200 flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                Ya, Hapus Asesmen
+                <Trash2 className="w-3.5 h-3.5" />
+                Ya, Hapus Data
               </button>
             </div>
           </div>
