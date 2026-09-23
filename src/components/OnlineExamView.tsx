@@ -24,7 +24,7 @@ import {
   Calendar,
   X
 } from 'lucide-react';
-import { OnlineExam, ExamQuestion, UserRole, ExamResult } from '../types';
+import { OnlineExam, ExamQuestion, UserRole, ExamResult, Subject, ClassRoom } from '../types';
 import {
   getDeadlineStatus,
   getDefaultDateTimeInput,
@@ -34,6 +34,8 @@ import {
 interface OnlineExamViewProps {
   exams: OnlineExam[];
   userRole: UserRole;
+  subjects?: Subject[];
+  classes?: ClassRoom[];
   currentStudentId: string;
   currentStudentName: string;
   currentStudentClass: string;
@@ -50,6 +52,8 @@ interface OnlineExamViewProps {
 export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
   exams,
   userRole,
+  subjects = [],
+  classes = [],
   currentStudentId,
   currentStudentName,
   currentStudentClass,
@@ -1038,22 +1042,51 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">Mata Pelajaran</label>
-                    <input
-                      type="text"
+                    <select
                       value={newSubject}
                       onChange={(e) => setNewSubject(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl"
-                    />
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      required
+                    >
+                      <option value="">-- Pilih Mata Pelajaran --</option>
+                      {subjects.map((sub) => (
+                        <option key={sub.id} value={sub.name}>
+                          {sub.name} ({sub.code})
+                        </option>
+                      ))}
+                      {newSubject && !subjects.some((s) => s.name.toLowerCase() === newSubject.toLowerCase()) && (
+                        <option value={newSubject}>{newSubject} (Tersimpan)</option>
+                      )}
+                    </select>
                   </div>
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">Target Kelas</label>
-                    <input
-                      type="text"
-                      value={newTargetClass}
-                      onChange={(e) => setNewTargetClass(e.target.value)}
-                      placeholder="12 PPLG 2"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold"
-                    />
+                    {classes.length > 0 ? (
+                      <select
+                        value={newTargetClass}
+                        onChange={(e) => setNewTargetClass(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                        required
+                      >
+                        <option value="">-- Pilih Kelas --</option>
+                        {classes.map((cls) => (
+                          <option key={cls.id} value={cls.name}>
+                            {cls.name}
+                          </option>
+                        ))}
+                        {newTargetClass && !classes.some((c) => c.name === newTargetClass) && (
+                          <option value={newTargetClass}>{newTargetClass}</option>
+                        )}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={newTargetClass}
+                        onChange={(e) => setNewTargetClass(e.target.value)}
+                        placeholder="12 PPLG 2"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold"
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">Jenis Evaluasi</label>

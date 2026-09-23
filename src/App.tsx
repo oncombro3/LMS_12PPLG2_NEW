@@ -827,6 +827,8 @@ export default function App() {
             <OnlineExamView
               exams={exams}
               userRole={currentUser.role}
+              subjects={subjects}
+              classes={classes}
               currentStudentId={currentUser.id}
               currentStudentName={currentUser.name}
               currentStudentClass={currentUser.class}
@@ -840,6 +842,8 @@ export default function App() {
             <DailyTasksView
               tasks={tasks}
               userRole={currentUser.role}
+              subjects={subjects}
+              classes={classes}
               currentStudentId={currentUser.id}
               currentStudentName={currentUser.name}
               onCreateTask={handleCreateTask}
@@ -853,6 +857,8 @@ export default function App() {
             <AssessmentsView
               assessments={assessments}
               userRole={currentUser.role}
+              subjects={subjects}
+              classes={classes}
               currentStudentId={currentUser.id}
               currentStudentName={currentUser.name}
               onCreateAssessment={handleCreateAssessment}
@@ -866,6 +872,7 @@ export default function App() {
             <MaterialsView
               materials={materials}
               userRole={currentUser.role}
+              subjects={subjects}
               onCreateMaterial={handleCreateMaterial}
               onOpenSandboxWithCode={handleOpenSandboxWithCode}
             />
@@ -875,6 +882,7 @@ export default function App() {
             <QuizCBTView
               quizzes={quizzes}
               userRole={currentUser.role}
+              subjects={subjects}
               onCompleteQuiz={handleCompleteQuiz}
               onCreateQuiz={handleCreateQuiz}
               onDeleteQuiz={handleDeleteQuiz}

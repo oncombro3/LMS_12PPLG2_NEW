@@ -13,11 +13,12 @@ import {
   Sparkles,
   ExternalLink
 } from 'lucide-react';
-import { LearningMaterial, UserRole } from '../types';
+import { LearningMaterial, UserRole, Subject } from '../types';
 
 interface MaterialsViewProps {
   materials: LearningMaterial[];
   userRole: UserRole;
+  subjects?: Subject[];
   onCreateMaterial: (data: Partial<LearningMaterial>) => Promise<void>;
   onOpenSandboxWithCode?: (code: string, language: string) => void;
 }
@@ -25,6 +26,7 @@ interface MaterialsViewProps {
 export const MaterialsView: React.FC<MaterialsViewProps> = ({
   materials,
   userRole,
+  subjects = [],
   onCreateMaterial,
   onOpenSandboxWithCode,
 }) => {
@@ -222,12 +224,22 @@ export const MaterialsView: React.FC<MaterialsViewProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Mata Pelajaran</label>
-                  <input
-                    type="text"
+                  <select
                     value={newSubject}
                     onChange={(e) => setNewSubject(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border rounded-xl"
-                  />
+                    className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    required
+                  >
+                    <option value="">-- Pilih Mata Pelajaran --</option>
+                    {subjects.map((sub) => (
+                      <option key={sub.id} value={sub.name}>
+                        {sub.name} ({sub.code})
+                      </option>
+                    ))}
+                    {newSubject && !subjects.some((s) => s.name.toLowerCase() === newSubject.toLowerCase()) && (
+                      <option value={newSubject}>{newSubject} (Tersimpan)</option>
+                    )}
+                  </select>
                 </div>
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Bab / Unit</label>

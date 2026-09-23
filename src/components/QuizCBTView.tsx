@@ -20,7 +20,7 @@ import {
   Save,
   CheckSquare
 } from 'lucide-react';
-import { Quiz, QuizQuestion, UserRole } from '../types';
+import { Quiz, QuizQuestion, UserRole, Subject } from '../types';
 import {
   getDeadlineStatus,
   getDefaultDateTimeInput,
@@ -30,6 +30,7 @@ import {
 interface QuizCBTViewProps {
   quizzes: Quiz[];
   userRole?: UserRole;
+  subjects?: Subject[];
   onCompleteQuiz: (quizId: string, score: number) => void;
   onCreateQuiz?: (quizData: Partial<Quiz>) => Promise<void> | void;
   onDeleteQuiz?: (quizId: string) => Promise<void> | void;
@@ -38,6 +39,7 @@ interface QuizCBTViewProps {
 export const QuizCBTView: React.FC<QuizCBTViewProps> = ({
   quizzes,
   userRole = 'student',
+  subjects = [],
   onCompleteQuiz,
   onCreateQuiz,
   onDeleteQuiz,
@@ -756,12 +758,22 @@ export const QuizCBTView: React.FC<QuizCBTViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">Mata Pelajaran</label>
-                    <input
-                      type="text"
+                    <select
                       value={newCourse}
                       onChange={(e) => setNewCourse(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl"
-                    />
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      required
+                    >
+                      <option value="">-- Pilih Mata Pelajaran --</option>
+                      {subjects.map((sub) => (
+                        <option key={sub.id} value={sub.name}>
+                          {sub.name} ({sub.code})
+                        </option>
+                      ))}
+                      {newCourse && !subjects.some((s) => s.name.toLowerCase() === newCourse.toLowerCase()) && (
+                        <option value={newCourse}>{newCourse} (Tersimpan)</option>
+                      )}
+                    </select>
                   </div>
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">Topik Pembahasan</label>
