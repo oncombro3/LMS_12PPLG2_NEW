@@ -20,6 +20,7 @@ import {
   Megaphone,
   Pin,
   Plus,
+  History,
 } from 'lucide-react';
 import {
   User,
@@ -98,6 +99,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
+
+          {currentUser.role === 'student' && (
+            <button
+              onClick={() => onSelectTab('student_history')}
+              className="w-full px-4 py-2 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold transition flex items-center justify-between gap-3 border border-white/20"
+            >
+              <span className="flex items-center gap-2">
+                <History className="w-4 h-4 text-emerald-300" />
+                <span>Riwayat Pengumpulan & Nilai</span>
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 text-indigo-200" />
+            </button>
+          )}
         </div>
       </div>
 

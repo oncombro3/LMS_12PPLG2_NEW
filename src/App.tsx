@@ -29,6 +29,7 @@ import { Sidebar, TabType } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
 import { OnlineExamView } from './components/OnlineExamView';
 import { DailyTasksView } from './components/DailyTasksView';
+import { StudentHistoryView } from './components/StudentHistoryView';
 import { AssessmentsView } from './components/AssessmentsView';
 import { MaterialsView } from './components/MaterialsView';
 import { QuizCBTView } from './components/QuizCBTView';
@@ -517,8 +518,37 @@ export default function App() {
 
   // --- Handlers: Kuis Selesai & Buat Kuis Baru (Guru) ---
   const handleCompleteQuiz = (quizId: string, score: number) => {
+    const timestamp =
+      new Date().toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }) + ' WIB';
+
     setQuizzes((prev) =>
-      prev.map((q) => (q.id === quizId ? { ...q, isCompleted: true, lastScore: score } : q))
+      prev.map((q) =>
+        q.id === quizId
+          ? {
+              ...q,
+              isCompleted: true,
+              lastScore: score,
+              completedAt: timestamp,
+              completedStudents: [
+                ...(q.completedStudents || []).filter(
+                  (s) => s.studentId !== currentUser.id && s.studentName !== currentUser.name
+                ),
+                {
+                  studentId: currentUser.id,
+                  studentName: currentUser.name,
+                  score,
+                  completedAt: timestamp,
+                },
+              ],
+            }
+          : q
+      )
     );
   };
 
@@ -667,7 +697,20 @@ export default function App() {
   };
 
   const activeExamsCount = exams.filter((e) => e.status === 'active').length;
-  const pendingTasksCount = tasks.filter((t) => !t.mySubmission).length;
+  const pendingTasksCount = tasks.filter(
+    (t) =>
+      !t.submissions?.some(
+        (s) =>
+          s.studentId === currentUser.id ||
+          (s.studentName && s.studentName.toLowerCase() === currentUser.name.toLowerCase())
+      ) &&
+      !(
+        t.mySubmission &&
+        (t.mySubmission.studentId === currentUser.id ||
+          (t.mySubmission.studentName &&
+            t.mySubmission.studentName.toLowerCase() === currentUser.name.toLowerCase()))
+      )
+  ).length;
   const currentClassInfo = classes.find((c) => c.name === currentUser.class);
 
   const registeredStudentsCount = usersRoster.filter((u) => u.role === 'student').length;
@@ -850,6 +893,18 @@ export default function App() {
               onDeleteTask={handleDeleteTask}
               onSubmitTask={handleSubmitTask}
               onGradeTask={handleGradeTask}
+            />
+          )}
+
+          {activeTab === 'student_history' && (
+            <StudentHistoryView
+              currentUser={currentUser}
+              tasks={tasks}
+              exams={exams}
+              quizzes={quizzes}
+              assessments={assessments}
+              subjects={subjects}
+              onNavigateTab={setActiveTab}
             />
           )}
 

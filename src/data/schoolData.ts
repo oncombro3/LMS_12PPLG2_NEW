@@ -703,6 +703,20 @@ export const INITIAL_ONLINE_EXAMS: OnlineExam[] = [
     ],
     results: [
       {
+        studentId: 'std-1201',
+        studentName: 'Muhammad Farhan Ramadhan',
+        studentClass: 'XII PPLG 2',
+        startedAt: '08:00 WIB',
+        finishedAt: '08:42 WIB',
+        answers: { q1: 1, q2: 1, q3: 0, q4: 1, q5: 1 },
+        flaggedQuestions: [],
+        score: 95,
+        maxScore: 100,
+        isPassed: true,
+        violationsCount: 0,
+        gradedByTeacher: true,
+      },
+      {
         studentId: 'std-1202',
         studentName: 'Ahmad Fauzi',
         studentClass: 'XII PPLG 2',
@@ -871,7 +885,9 @@ export const INITIAL_DAILY_TASKS: DailyTask[] = [
         submittedAt: '18 Agu 2026, 16:30 WIB',
         githubUrl: 'https://github.com/farhan-pplg/express-mongoose-crud',
         workContent: 'const createStudent = async (req, res) => { const s = await Student.create(req.body); res.json(s); };',
-        status: 'submitted',
+        score: 95,
+        feedback: 'Implementasi async/await dan validasi schema Mongoose sangat bersih dan rapi.',
+        status: 'graded',
       },
     ],
     mySubmission: {
@@ -880,7 +896,9 @@ export const INITIAL_DAILY_TASKS: DailyTask[] = [
       submittedAt: '18 Agu 2026, 16:30 WIB',
       githubUrl: 'https://github.com/farhan-pplg/express-mongoose-crud',
       workContent: 'const createStudent = async (req, res) => { const s = await Student.create(req.body); res.json(s); };',
-      status: 'submitted',
+      score: 95,
+      feedback: 'Implementasi async/await dan validasi schema Mongoose sangat bersih dan rapi.',
+      status: 'graded',
     },
   },
   {

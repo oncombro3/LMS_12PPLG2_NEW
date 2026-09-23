@@ -97,6 +97,19 @@ export const DailyTasksView: React.FC<DailyTasksViewProps> = ({
   const [newMaxScore, setNewMaxScore] = useState(100);
 
   const selectedDeadline = getDeadlineStatus(selectedTask?.dueDate);
+  const currentStudentSub = selectedTask
+    ? selectedTask.submissions?.find(
+        (s) =>
+          s.studentId === currentStudentId ||
+          (s.studentName && s.studentName.toLowerCase() === currentStudentName?.toLowerCase())
+      ) ||
+      (selectedTask.mySubmission &&
+      (selectedTask.mySubmission.studentId === currentStudentId ||
+        (selectedTask.mySubmission.studentName &&
+          selectedTask.mySubmission.studentName.toLowerCase() === currentStudentName?.toLowerCase()))
+        ? selectedTask.mySubmission
+        : undefined)
+    : undefined;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,10 +260,19 @@ export const DailyTasksView: React.FC<DailyTasksViewProps> = ({
           </div>
           {tasks.map((task) => {
             const isSelected = selectedTask?.id === task.id;
-            const hasSubmitted = Boolean(
-              task.mySubmission ||
-                task.submissions?.some((s) => s.studentId === currentStudentId)
-            );
+            const myTaskSub =
+              task.submissions?.find(
+                (s) =>
+                  s.studentId === currentStudentId ||
+                  (s.studentName && s.studentName.toLowerCase() === currentStudentName?.toLowerCase())
+              ) ||
+              (task.mySubmission &&
+              (task.mySubmission.studentId === currentStudentId ||
+                (task.mySubmission.studentName &&
+                  task.mySubmission.studentName.toLowerCase() === currentStudentName?.toLowerCase()))
+                ? task.mySubmission
+                : undefined);
+            const hasSubmitted = Boolean(myTaskSub);
             const submissionsCount = task.submissions?.length || 0;
             const itemDeadline = getDeadlineStatus(task.dueDate);
 
@@ -504,101 +526,101 @@ export const DailyTasksView: React.FC<DailyTasksViewProps> = ({
               ) : (
                 /* FOR STUDENT: SUBMIT HOMEWORK */
                 <div className="space-y-4 pt-2 border-t border-slate-100">
-                  {selectedTask.mySubmission && !isEditingExistingSubmission ? (
-                    <div className="p-5 bg-gradient-to-br from-emerald-50/70 to-slate-50 rounded-2xl border border-emerald-200 space-y-4 shadow-xs">
-                      {/* Header Status */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-emerald-100">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 bg-emerald-600 text-white rounded-xl shadow-xs">
-                            <CheckCircle2 className="w-4 h-4" />
-                          </span>
-                          <div>
-                            <h4 className="text-sm font-extrabold text-emerald-950 flex items-center gap-2">
-                              Tugas Terkumpul
-                            </h4>
-                            <span className="text-[11px] text-emerald-700">
-                              Diserahkan: {selectedTask.mySubmission.submittedAt || 'Hari ini'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {selectedTask.mySubmission.status === 'graded' && selectedTask.mySubmission.score !== undefined ? (
-                          <span className="text-sm font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3.5 py-1 rounded-xl self-start sm:self-auto">
-                            Nilai: {selectedTask.mySubmission.score} / {selectedTask.maxScore}
-                          </span>
-                        ) : (
-                          <span className="px-3 py-1 bg-amber-100 text-amber-900 border border-amber-200 rounded-full text-xs font-bold self-start sm:self-auto flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-amber-700" />
-                            Menunggu Penilaian Guru
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Informational text for student */}
-                      {selectedTask.mySubmission.status !== 'graded' ? (
-                        <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-600 leading-relaxed">
-                          Tugas kamu sudah berhasil disimpan di sistem. Nilai akan muncul di sini setelah guru pengampu (<strong>{selectedTask.teacher}</strong>) selesai memeriksa dan memberikan penilaian.
-                        </div>
-                      ) : (
-                        selectedTask.mySubmission.feedback && (
-                          <div className="p-3 bg-emerald-100/60 rounded-xl border border-emerald-200 text-xs text-emerald-950">
-                            <strong>Umpan Balik Guru:</strong> {selectedTask.mySubmission.feedback}
-                          </div>
-                        )
-                      )}
-
-                      {/* Submitted content details */}
-                      <div className="space-y-2 text-xs">
-                        {selectedTask.mySubmission.githubUrl && (
-                          <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200 font-mono text-[11px] text-indigo-700">
-                            <GitBranch className="w-4 h-4 text-indigo-600 shrink-0" />
-                            <span className="text-slate-500 font-sans font-bold">Repositori Git:</span>
-                            <a
-                              href={selectedTask.mySubmission.githubUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="hover:underline truncate text-indigo-600 font-semibold"
-                            >
-                              {selectedTask.mySubmission.githubUrl}
-                            </a>
-                          </div>
-                        )}
-                        {selectedTask.mySubmission.workContent && (
-                          <div className="p-3 bg-white rounded-xl border border-slate-200 font-mono text-[11px] text-slate-800 whitespace-pre-wrap max-h-40 overflow-y-auto">
-                            <div className="font-sans font-bold text-slate-500 text-[10px] uppercase mb-1">
-                              Ringkasan / Kode yang Dikirim:
+                  {currentStudentSub && !isEditingExistingSubmission ? (
+                        <div className="p-5 bg-gradient-to-br from-emerald-50/70 to-slate-50 rounded-2xl border border-emerald-200 space-y-4 shadow-xs">
+                          {/* Header Status */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-emerald-100">
+                            <div className="flex items-center gap-2">
+                              <span className="p-1.5 bg-emerald-600 text-white rounded-xl shadow-xs">
+                                <CheckCircle2 className="w-4 h-4" />
+                              </span>
+                              <div>
+                                <h4 className="text-sm font-extrabold text-emerald-950 flex items-center gap-2">
+                                  Tugas Terkumpul
+                                </h4>
+                                <span className="text-[11px] text-emerald-700">
+                                  Diserahkan: {currentStudentSub.submittedAt || 'Hari ini'}
+                                </span>
+                              </div>
                             </div>
-                            {selectedTask.mySubmission.workContent}
-                          </div>
-                        )}
-                      </div>
 
-                      {/* Edit / Resubmit button if not graded yet and NOT expired */}
-                      {selectedTask.mySubmission.status !== 'graded' && (
-                        <div className="flex items-center justify-between pt-1">
-                          {selectedDeadline.isExpired ? (
-                            <span className="text-[11px] text-rose-600 font-bold flex items-center gap-1">
-                              <AlertCircle className="w-3.5 h-3.5" />
-                              Batas pengumpulan telah berakhir. Pembaruan tugas dinonaktifkan.
-                            </span>
+                            {currentStudentSub.status === 'graded' && currentStudentSub.score !== undefined ? (
+                              <span className="text-sm font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3.5 py-1 rounded-xl self-start sm:self-auto">
+                                Nilai: {currentStudentSub.score} / {selectedTask.maxScore}
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 bg-amber-100 text-amber-900 border border-amber-200 rounded-full text-xs font-bold self-start sm:self-auto flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-amber-700" />
+                                Menunggu Penilaian Guru
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Informational text for student */}
+                          {currentStudentSub.status !== 'graded' ? (
+                            <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-600 leading-relaxed">
+                              Tugas kamu sudah berhasil disimpan di sistem. Nilai akan muncul di sini setelah guru pengampu (<strong>{selectedTask.teacher}</strong>) selesai memeriksa dan memberikan penilaian.
+                            </div>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setWorkContent(selectedTask.mySubmission?.workContent || '');
-                                setGithubUrl(selectedTask.mySubmission?.githubUrl || '');
-                                setIsEditingExistingSubmission(true);
-                              }}
-                              className="px-3.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
-                            >
-                              <Edit className="w-3.5 h-3.5 text-slate-500" />
-                              Perbarui / Kirim Ulang Jawaban
-                            </button>
+                            currentStudentSub.feedback && (
+                              <div className="p-3 bg-emerald-100/60 rounded-xl border border-emerald-200 text-xs text-emerald-950">
+                                <strong>Umpan Balik Guru:</strong> {currentStudentSub.feedback}
+                              </div>
+                            )
+                          )}
+
+                          {/* Submitted content details */}
+                          <div className="space-y-2 text-xs">
+                            {currentStudentSub.githubUrl && (
+                              <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200 font-mono text-[11px] text-indigo-700">
+                                <GitBranch className="w-4 h-4 text-indigo-600 shrink-0" />
+                                <span className="text-slate-500 font-sans font-bold">Repositori Git:</span>
+                                <a
+                                  href={currentStudentSub.githubUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="hover:underline truncate text-indigo-600 font-semibold"
+                                >
+                                  {currentStudentSub.githubUrl}
+                                </a>
+                              </div>
+                            )}
+                            {currentStudentSub.workContent && (
+                              <div className="p-3 bg-white rounded-xl border border-slate-200 font-mono text-[11px] text-slate-800 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                                <div className="font-sans font-bold text-slate-500 text-[10px] uppercase mb-1">
+                                  Ringkasan / Kode yang Dikirim:
+                                </div>
+                                {currentStudentSub.workContent}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Edit / Resubmit button if not graded yet and NOT expired */}
+                          {currentStudentSub.status !== 'graded' && (
+                            <div className="flex items-center justify-between pt-1">
+                              {selectedDeadline.isExpired ? (
+                                <span className="text-[11px] text-rose-600 font-bold flex items-center gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5" />
+                                  Batas pengumpulan telah berakhir. Pembaruan tugas dinonaktifkan.
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setWorkContent(currentStudentSub?.workContent || '');
+                                    setGithubUrl(currentStudentSub?.githubUrl || '');
+                                    setIsEditingExistingSubmission(true);
+                                  }}
+                                  className="px-3.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                                >
+                                  <Edit className="w-3.5 h-3.5 text-slate-500" />
+                                  Perbarui / Kirim Ulang Jawaban
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                  ) : selectedDeadline.isExpired && !isEditingExistingSubmission ? (
+                      ) : selectedDeadline.isExpired && !isEditingExistingSubmission ? (
                     /* DEADLINE EXPIRED WARNING FOR STUDENTS WHO HAVEN'T SUBMITTED */
                     <div className="p-6 bg-rose-50 border-2 border-rose-200 rounded-2xl text-center space-y-3">
                       <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">

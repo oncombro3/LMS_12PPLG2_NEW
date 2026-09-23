@@ -22,6 +22,7 @@ import {
   Megaphone,
   LogOut,
   User,
+  History,
 } from 'lucide-react';
 import { UserRole, TabType } from '../types';
 
@@ -261,6 +262,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         icon: ListTodo,
         badge: pendingTasksCount > 0 ? `${pendingTasksCount} Baru` : null,
         badgeColor: 'bg-indigo-500 text-white',
+      },
+      {
+        id: 'student_history' as TabType,
+        label: 'Riwayat Tugas & Nilai',
+        icon: History,
+        badge: 'Riwayat',
+        badgeColor: 'bg-emerald-600 text-white',
       },
       {
         id: 'assessments' as TabType,

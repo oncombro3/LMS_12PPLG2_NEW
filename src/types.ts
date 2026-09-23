@@ -4,6 +4,7 @@ export type TabType =
   | 'dashboard'
   | 'profile'
   | 'announcements'
+  | 'student_history'
   | 'exams'
   | 'tasks'
   | 'assessments'
@@ -257,6 +258,7 @@ export interface InteractiveQuiz {
   isCompleted?: boolean;
   lastScore?: number;
   completedAt?: string;
+  completedStudents?: { studentId: string; studentName?: string; score: number; completedAt: string }[];
   questions: QuizQuestion[];
 }
 
