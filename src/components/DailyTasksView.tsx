@@ -19,7 +19,8 @@ import {
   Eye,
   Trash2,
   Calendar,
-  X
+  X,
+  RotateCcw
 } from 'lucide-react';
 import { DailyTask, UserRole, Subject, ClassRoom } from '../types';
 import {
@@ -41,6 +42,7 @@ interface DailyTasksViewProps {
     payload: { workContent?: string; githubUrl?: string; attachmentUrl?: string }
   ) => Promise<void>;
   onDeleteTask?: (taskId: string) => Promise<void> | void;
+  onUpdateTask?: (taskId: string, updates: Partial<DailyTask>) => Promise<void> | void;
   onGradeTask?: (
     taskId: string,
     studentId: string,
@@ -59,6 +61,7 @@ export const DailyTasksView: React.FC<DailyTasksViewProps> = ({
   onCreateTask,
   onSubmitTask,
   onDeleteTask,
+  onUpdateTask,
   onGradeTask,
 }) => {
   const [selectedTask, setSelectedTask] = useState<DailyTask | null>(tasks[0] || null);
@@ -68,6 +71,26 @@ export const DailyTasksView: React.FC<DailyTasksViewProps> = ({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isEditingExistingSubmission, setIsEditingExistingSubmission] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+
+  // Reactivate / Extend task deadline states for teacher
+  const [reactivatingTask, setReactivatingTask] = useState<DailyTask | null>(null);
+  const [reactivateDueDateInput, setReactivateDueDateInput] = useState(() => getDefaultDateTimeInput(2, 23, 59));
+  const [reactivateNote, setReactivateNote] = useState('');
+  const [isSubmittingReactivate, setIsSubmittingReactivate] = useState(false);
+
+  // Keep selectedTask in sync when tasks prop updates
+  React.useEffect(() => {
+    if (selectedTask) {
+      const found = tasks.find((t) => t.id === selectedTask.id);
+      if (found) {
+        setSelectedTask(found);
+      } else if (tasks.length > 0) {
+        setSelectedTask(tasks[0]);
+      }
+    } else if (tasks.length > 0) {
+      setSelectedTask(tasks[0]);
+    }
+  }, [tasks]);
 
   // Status notification banner (Tugas Terkumpul / Tugas Gagal Terkirim)
   const [submissionStatusMessage, setSubmissionStatusMessage] = useState<{
@@ -375,14 +398,33 @@ export const DailyTasksView: React.FC<DailyTasksViewProps> = ({
                       Maks. Skor: {selectedTask.maxScore} Poin
                     </span>
                     {(userRole === 'teacher' || userRole === 'admin') && (
-                      <button
-                        type="button"
-                        onClick={() => setDeletingTaskId(selectedTask.id)}
-                        className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg text-xs font-bold transition flex items-center gap-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Hapus Tugas
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReactivatingTask(selectedTask);
+                            setReactivateDueDateInput(getDefaultDateTimeInput(2, 23, 59));
+                            setReactivateNote('');
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer ${
+                            selectedDeadline.isExpired
+                              ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse'
+                              : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200'
+                          }`}
+                          title="Aktifkan kembali tugas / atur batas waktu baru agar siswa dapat mengumpulkan"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>{selectedDeadline.isExpired ? 'Aktifkan Kembali Tugas' : 'Perpanjang Tenggat'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeletingTaskId(selectedTask.id)}
+                          className="px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Hapus
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -402,6 +444,35 @@ export const DailyTasksView: React.FC<DailyTasksViewProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* Callout khusus Guru jika batas waktu tugas sudah habis */}
+              {selectedDeadline.isExpired && (userRole === 'teacher' || userRole === 'admin') && (
+                <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-in fade-in">
+                  <div className="flex items-start gap-3 text-xs text-amber-950">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-extrabold text-amber-900 text-sm">
+                        Batas Waktu Pengumpulan Telah Berakhir
+                      </h4>
+                      <p className="text-amber-800 text-[11px] mt-0.5 leading-relaxed">
+                        Siswa saat ini terkunci dan tidak dapat mengumpulkan tugas. Klik tombol di samping untuk mengaktifkan kembali tugas ini dengan menentukan batas waktu yang baru agar siswa dapat mengumpulkan kembali.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReactivatingTask(selectedTask);
+                      setReactivateDueDateInput(getDefaultDateTimeInput(2, 23, 59));
+                      setReactivateNote('');
+                    }}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 shrink-0 shadow-md shadow-amber-200 transition cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Aktifkan Kembali Sekarang</span>
+                  </button>
+                </div>
+              )}
 
               {/* Status Banner Notification */}
               {submissionStatusMessage && (
@@ -976,6 +1047,153 @@ export const DailyTasksView: React.FC<DailyTasksViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: AKTIFKAN KEMBALI / PERPANJANG BATAS WAKTU TUGAS */}
+      {reactivatingTask && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full border border-slate-200 shadow-2xl space-y-4 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">
+                    Aktifkan Kembali Tugas
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {reactivatingTask.subject} • {reactivatingTask.targetClass || '12 PPLG 2'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReactivatingTask(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Judul Tugas:</span>
+                <p className="font-bold text-slate-900 text-sm">{reactivatingTask.title}</p>
+                <p className="text-slate-500 text-[11px] pt-1">
+                  Batas Waktu Sebelumnya: <span className="line-through text-rose-600 font-semibold">{reactivatingTask.dueDate}</span>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block font-bold text-slate-800 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  Tentukan Batas Waktu Baru (Tanggal & Jam):
+                </label>
+                <input
+                  type="datetime-local"
+                  value={reactivateDueDateInput}
+                  onChange={(e) => setReactivateDueDateInput(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border-2 border-indigo-200 focus:border-indigo-600 rounded-xl font-medium outline-none text-xs text-slate-800 shadow-xs"
+                  required
+                />
+
+                {/* Preset Cepat */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-slate-400 font-bold mr-1">Preset Cepat:</span>
+                  <button
+                    type="button"
+                    onClick={() => setReactivateDueDateInput(getDefaultDateTimeInput(1, 23, 59))}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-[11px] font-bold text-slate-600 transition cursor-pointer"
+                  >
+                    +1 Hari (Besok)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReactivateDueDateInput(getDefaultDateTimeInput(3, 23, 59))}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-[11px] font-bold text-slate-600 transition cursor-pointer"
+                  >
+                    +3 Hari
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReactivateDueDateInput(getDefaultDateTimeInput(7, 23, 59))}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-[11px] font-bold text-slate-600 transition cursor-pointer"
+                  >
+                    +1 Minggu
+                  </button>
+                </div>
+
+                <div className="p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-xl text-indigo-900 text-[11px]">
+                  Tenggat baru tersimpan: <strong>{formatDateTimeInputToIndo(reactivateDueDateInput)}</strong>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block font-bold text-slate-700">
+                  Catatan Tambahan untuk Siswa (Opsional):
+                </label>
+                <input
+                  type="text"
+                  value={reactivateNote}
+                  onChange={(e) => setReactivateNote(e.target.value)}
+                  placeholder="Contoh: Perpanjangan pengumpulan bagi siswa susulan/remedial"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-950 text-[11px] leading-relaxed flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Form pengumpulan tugas di dashboard siswa akan langsung terbuka kembali.</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setReactivatingTask(null)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingReactivate || !reactivateDueDateInput}
+                onClick={async () => {
+                  if (!reactivatingTask) return;
+                  setIsSubmittingReactivate(true);
+                  try {
+                    const formatted = formatDateTimeInputToIndo(reactivateDueDateInput);
+                    const updates: Partial<DailyTask> = {
+                      dueDate: formatted,
+                    };
+                    if (reactivateNote.trim()) {
+                      updates.instructions = `${reactivatingTask.instructions || ''}\n\n[Catatan Perpanjangan Waktu]: ${reactivateNote.trim()}`;
+                    }
+                    if (onUpdateTask) {
+                      await onUpdateTask(reactivatingTask.id, updates);
+                    }
+                    setSelectedTask((prev) => (prev && prev.id === reactivatingTask.id ? { ...prev, ...updates } : prev));
+                    setSubmissionStatusMessage({
+                      type: 'success',
+                      title: 'Tugas Berhasil Diaktifkan Kembali!',
+                      description: `Batas waktu baru telah diatur ke ${formatted}. Siswa sekarang dapat mengumpulkan tugas kembali.`,
+                    });
+                    setReactivatingTask(null);
+                  } catch (err) {
+                    console.error(err);
+                  } finally {
+                    setIsSubmittingReactivate(false);
+                  }
+                }}
+                className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-extrabold transition shadow-md shadow-amber-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                {isSubmittingReactivate ? 'Menyimpan...' : 'Aktifkan Kembali'}
+              </button>
+            </div>
           </div>
         </div>
       )}

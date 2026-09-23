@@ -185,6 +185,16 @@ export const api = {
     return await res.json();
   },
 
+  async updateExam(id: string, updates: Partial<OnlineExam>): Promise<OnlineExam> {
+    const res = await fetch(`/api/exams/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error('Failed to update exam');
+    return await res.json();
+  },
+
   // 2. Assessments (Asesmen Kurikulum Merdeka)
   async getAssessments(): Promise<AssessmentItem[]> {
     const res = await fetch('/api/assessments');
@@ -258,6 +268,16 @@ export const api = {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to delete task');
+    return await res.json();
+  },
+
+  async updateTask(id: string, updates: Partial<DailyTask>): Promise<DailyTask> {
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error('Failed to update task');
     return await res.json();
   },
 

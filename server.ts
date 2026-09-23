@@ -494,6 +494,32 @@ async function startServer() {
     }
   });
 
+  // Update Ulangan / Aktifkan Kembali & Perpanjang Waktu (Guru / Admin)
+  app.put('/api/exams/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const { isMongoConnected } = getDbStatus();
+
+      if (isMongoConnected) {
+        const updated = await ExamModel.findOneAndUpdate(
+          { id },
+          { $set: updates },
+          { new: true }
+        ).lean();
+        if (!updated) return res.status(404).json({ error: 'Ulangan tidak ditemukan' });
+        return res.json(updated);
+      } else {
+        const idx = inMemoryStore.exams.findIndex((e: any) => e.id === id);
+        if (idx === -1) return res.status(404).json({ error: 'Ulangan tidak ditemukan' });
+        inMemoryStore.exams[idx] = { ...inMemoryStore.exams[idx], ...updates };
+        return res.json(inMemoryStore.exams[idx]);
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // --- 2. ASESMEN KURIKULUM MERDEKA API ---
   app.get('/api/assessments', async (req, res) => {
     try {
@@ -677,6 +703,32 @@ async function startServer() {
         inMemoryStore.tasks = (inMemoryStore.tasks as any[]).filter((t: any) => t.id !== id);
       }
       return res.json({ success: true, message: 'Tugas berhasil dihapus' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Update Tugas / Perpanjang Tenggat (Guru / Admin)
+  app.put('/api/tasks/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const { isMongoConnected } = getDbStatus();
+
+      if (isMongoConnected) {
+        const updated = await TaskModel.findOneAndUpdate(
+          { id },
+          { $set: updates },
+          { new: true }
+        ).lean();
+        if (!updated) return res.status(404).json({ error: 'Tugas tidak ditemukan' });
+        return res.json(updated);
+      } else {
+        const idx = inMemoryStore.tasks.findIndex((t: any) => t.id === id);
+        if (idx === -1) return res.status(404).json({ error: 'Tugas tidak ditemukan' });
+        inMemoryStore.tasks[idx] = { ...inMemoryStore.tasks[idx], ...updates };
+        return res.json(inMemoryStore.tasks[idx]);
+      }
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

@@ -333,7 +333,8 @@ export default function App() {
               isPassed: score >= e.passingScore,
               violationsCount,
             };
-            return { ...e, results: [...e.results, res], myResult: res };
+            const cleanResults = (e.results || []).filter((r) => r.studentId !== currentUser.id);
+            return { ...e, results: [...cleanResults, res], myResult: res };
           }
           return e;
         })
@@ -348,6 +349,16 @@ export default function App() {
       console.warn('Fallback local deletion of exam:', err);
     }
     setExams((prev) => prev.filter((e) => e.id !== examId));
+  };
+
+  const handleUpdateExam = async (examId: string, updates: Partial<OnlineExam>) => {
+    try {
+      const updated = await api.updateExam(examId, updates);
+      setExams((prev) => prev.map((e) => (e.id === examId ? { ...e, ...updated } : e)));
+    } catch (err) {
+      console.warn('Fallback local update exam:', err);
+      setExams((prev) => prev.map((e) => (e.id === examId ? { ...e, ...updates } : e)));
+    }
   };
 
   // --- Handlers: Tugas Harian (Guru & Siswa) ---
@@ -417,6 +428,16 @@ export default function App() {
       console.warn('Fallback local deletion of task:', err);
     }
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  };
+
+  const handleUpdateTask = async (taskId: string, updates: Partial<DailyTask>) => {
+    try {
+      const updated = await api.updateTask(taskId, updates);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updated } : t)));
+    } catch (err) {
+      console.warn('Fallback local update task:', err);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)));
+    }
   };
 
   // --- Handlers: Asesmen (Guru & Siswa) ---
@@ -877,6 +898,7 @@ export default function App() {
               currentStudentClass={currentUser.class}
               onCreateExam={handleCreateExam}
               onDeleteExam={handleDeleteExam}
+              onUpdateExam={handleUpdateExam}
               onSubmitExam={handleSubmitExam}
             />
           )}
@@ -891,6 +913,7 @@ export default function App() {
               currentStudentName={currentUser.name}
               onCreateTask={handleCreateTask}
               onDeleteTask={handleDeleteTask}
+              onUpdateTask={handleUpdateTask}
               onSubmitTask={handleSubmitTask}
               onGradeTask={handleGradeTask}
             />

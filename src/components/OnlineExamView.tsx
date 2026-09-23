@@ -5,6 +5,7 @@ import {
   KeyRound,
   AlertTriangle,
   CheckCircle2,
+  AlertCircle,
   XCircle,
   HelpCircle,
   PlusCircle,
@@ -22,7 +23,9 @@ import {
   CheckSquare,
   BarChart2,
   Calendar,
-  X
+  X,
+  RotateCcw,
+  RefreshCw
 } from 'lucide-react';
 import { OnlineExam, ExamQuestion, UserRole, ExamResult, Subject, ClassRoom } from '../types';
 import {
@@ -41,6 +44,7 @@ interface OnlineExamViewProps {
   currentStudentClass: string;
   onCreateExam: (examData: Partial<OnlineExam>) => Promise<void>;
   onDeleteExam?: (examId: string) => Promise<void> | void;
+  onUpdateExam?: (examId: string, updates: Partial<OnlineExam>) => Promise<void> | void;
   onSubmitExam: (
     examId: string,
     answers: { [key: string]: number | string },
@@ -59,6 +63,7 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
   currentStudentClass,
   onCreateExam,
   onDeleteExam,
+  onUpdateExam,
   onSubmitExam,
 }) => {
   // Navigation & Active Test States
@@ -69,6 +74,18 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [examToUnlock, setExamToUnlock] = useState<OnlineExam | null>(null);
   const [deletingExamId, setDeletingExamId] = useState<string | null>(null);
+
+  // Reactivate Exam States for Teacher
+  const [reactivatingExam, setReactivatingExam] = useState<OnlineExam | null>(null);
+  const [reactivateEndDateInput, setReactivateEndDateInput] = useState(() => getDefaultDateTimeInput(1, 23, 59));
+  const [reactivateToken, setReactivateToken] = useState('');
+  const [reactivateAllowRetake, setReactivateAllowRetake] = useState(true);
+  const [isSubmittingReactivate, setIsSubmittingReactivate] = useState(false);
+  const [examActionMessage, setExamActionMessage] = useState<{
+    type: 'success' | 'error';
+    title: string;
+    description: string;
+  } | null>(null);
 
   // Live Exam Test Session States (For Students)
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -638,13 +655,41 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
         {(userRole === 'teacher' || userRole === 'kurikulum') && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-5 py-3 bg-indigo-500 hover:bg-indigo-400 text-white font-extrabold rounded-2xl text-xs transition shadow-lg shadow-indigo-950/50 flex items-center gap-2 shrink-0 self-start md:self-auto"
+            className="px-5 py-3 bg-indigo-500 hover:bg-indigo-400 text-white font-extrabold rounded-2xl text-xs transition shadow-lg shadow-indigo-950/50 flex items-center gap-2 shrink-0 self-start md:self-auto cursor-pointer"
           >
             <PlusCircle className="w-4 h-4" />
             Buat Ulangan / Bank Soal Baru
           </button>
         )}
       </div>
+
+      {/* Action Notification Message Banner */}
+      {examActionMessage && (
+        <div
+          className={`p-4 rounded-2xl border flex items-start gap-3 transition-all animate-in fade-in slide-in-from-top-2 ${
+            examActionMessage.type === 'success'
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+              : 'bg-rose-50 border-rose-300 text-rose-950'
+          }`}
+        >
+          {examActionMessage.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1 text-xs">
+            <h4 className="font-extrabold text-sm mb-0.5">{examActionMessage.title}</h4>
+            <p className="text-[11px] leading-relaxed opacity-90">{examActionMessage.description}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExamActionMessage(null)}
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Exams Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -722,22 +767,42 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
               <div className="pt-3 border-t border-slate-100">
                 {/* FOR TEACHER / ADMIN / KURIKULUM: GURU TIDAK MENGERJAKAN UJIAN */}
                 {userRole === 'teacher' || userRole === 'kurikulum' || userRole === 'admin' || userRole === 'kepalasekolah' ? (
-                  <div className="flex items-center justify-between gap-2 w-full">
-                    <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         onClick={() => setViewingQuestionsExam(exam)}
-                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1"
+                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         Soal ({exam.questions?.length || 0})
                       </button>
                       <button
                         onClick={() => setViewingResultsExam(exam)}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-extrabold transition shadow-sm flex items-center gap-1"
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-extrabold transition shadow-sm flex items-center gap-1 cursor-pointer"
                       >
                         <BarChart2 className="w-3.5 h-3.5" />
                         Nilai ({resultsCount})
                       </button>
+                      {onUpdateExam && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReactivatingExam(exam);
+                            setReactivateEndDateInput(getDefaultDateTimeInput(1, 23, 59));
+                            setReactivateToken(exam.token || 'PPLG26');
+                            setReactivateAllowRetake(true);
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 shadow-xs cursor-pointer ${
+                            deadlineInfo.isExpired || exam.status !== 'active'
+                              ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse'
+                              : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200'
+                          }`}
+                          title="Aktifkan kembali ujian dengan batas waktu baru agar siswa susulan / remedial dapat mengerjakan"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>{deadlineInfo.isExpired || exam.status !== 'active' ? 'Aktifkan Kembali' : 'Atur Waktu'}</span>
+                        </button>
+                      )}
                     </div>
 
                     {onDeleteExam && (
@@ -755,13 +820,34 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
                   /* FOR STUDENT: BISA MENGERJAKAN */
                   <div>
                     {isDone ? (
-                      <div className="flex items-center justify-between w-full">
-                        <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Jawaban Terkumpul
-                        </span>
-                        <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          Sudah Dikerjakan
-                        </span>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Jawaban Terkumpul
+                          </span>
+                          {myResult?.score !== undefined && (
+                            <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                              Nilai: {myResult.score} / {exam.passingScore || 75}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Jika ujian aktif dan belum kadaluarsa, siswa bisa ujian ulang jika guru mengaktifkan kembali */}
+                        {!deadlineInfo.isExpired && exam.status === 'active' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleStartExamFlow(exam)}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition shadow-xs self-start sm:self-auto cursor-pointer"
+                            title="Ulangan ini telah diaktifkan kembali oleh guru. Anda dapat mengerjakan ujian susulan / remedial."
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Ujian Ulang / Remedial</span>
+                          </button>
+                        ) : (
+                          <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 self-start sm:self-auto">
+                            Ujian Selesai
+                          </span>
+                        )}
                       </div>
                     ) : deadlineInfo.isExpired ? (
                       <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-center space-y-0.5">
@@ -770,7 +856,7 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
                           Ujian Ditutup (Lewat Batas Waktu)
                         </div>
                         <div className="text-[10px] text-rose-600">
-                          Tenggat berakhir pada jam {exam.endDate || 'yang ditentukan'}. Anda tidak dapat mengerjakan ulangan ini lagi.
+                          Tenggat berakhir pada jam {exam.endDate || 'yang ditentukan'}. Hubungi guru pengampu jika memerlukan ujian susulan.
                         </div>
                       </div>
                     ) : (
@@ -780,7 +866,7 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
                         </span>
                         <button
                           onClick={() => handleStartExamFlow(exam)}
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-extrabold transition shadow-md shadow-indigo-100 flex items-center gap-1.5"
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-extrabold transition shadow-md shadow-indigo-100 flex items-center gap-1.5 cursor-pointer"
                         >
                           <KeyRound className="w-3.5 h-3.5" />
                           Mulai Ujian
@@ -1376,6 +1462,176 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Ya, Hapus Data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: AKTIFKAN KEMBALI ULANGAN ONLINE (CBT) */}
+      {reactivatingExam && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full border border-slate-200 shadow-2xl space-y-4 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">
+                    Aktifkan Kembali Ulangan
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {reactivatingExam.code} • {reactivatingExam.targetClass}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReactivatingExam(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Judul Ulangan:</span>
+                <p className="font-bold text-slate-900 text-sm">{reactivatingExam.title}</p>
+                <p className="text-slate-500 text-[11px] pt-1">
+                  Batas Waktu Sebelumnya: <span className="line-through text-rose-600 font-semibold">{reactivatingExam.endDate || 'Selesai'}</span>
+                </p>
+              </div>
+
+              {/* Input Batas Waktu Baru */}
+              <div className="space-y-2">
+                <label className="block font-bold text-slate-800 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  Tentukan Batas Waktu & Jam Berakhir Baru:
+                </label>
+                <input
+                  type="datetime-local"
+                  value={reactivateEndDateInput}
+                  onChange={(e) => setReactivateEndDateInput(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border-2 border-indigo-200 focus:border-indigo-600 rounded-xl font-medium outline-none text-xs text-slate-800 shadow-xs"
+                  required
+                />
+
+                {/* Preset Cepat */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-slate-400 font-bold mr-1">Preset Cepat:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setHours(d.getHours() + 2);
+                      const yr = d.getFullYear();
+                      const mo = String(d.getMonth() + 1).padStart(2, '0');
+                      const da = String(d.getDate()).padStart(2, '0');
+                      const hr = String(d.getHours()).padStart(2, '0');
+                      const mi = String(d.getMinutes()).padStart(2, '0');
+                      setReactivateEndDateInput(`${yr}-${mo}-${da}T${hr}:${mi}`);
+                    }}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-[11px] font-bold text-slate-600 transition cursor-pointer"
+                  >
+                    +2 Jam (Hari Ini)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReactivateEndDateInput(getDefaultDateTimeInput(1, 23, 59))}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-[11px] font-bold text-slate-600 transition cursor-pointer"
+                  >
+                    +1 Hari (Besok)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReactivateEndDateInput(getDefaultDateTimeInput(3, 23, 59))}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-[11px] font-bold text-slate-600 transition cursor-pointer"
+                  >
+                    +3 Hari
+                  </button>
+                </div>
+
+                <div className="p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-xl text-indigo-900 text-[11px]">
+                  Batas akhir tersimpan: <strong>{formatDateTimeInputToIndo(reactivateEndDateInput)}</strong>
+                </div>
+              </div>
+
+              {/* Token Pengawas Baru / Tetap */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-slate-700">Token Ujian Pengawas:</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const randomToken = Math.random().toString(36).substring(2, 8).toUpperCase();
+                      setReactivateToken(randomToken);
+                    }}
+                    className="text-[11px] text-indigo-600 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Acak Token Baru
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={reactivateToken}
+                  onChange={(e) => setReactivateToken(e.target.value.toUpperCase())}
+                  placeholder="Misal: PPLG26"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-bold text-indigo-600 tracking-wider focus:bg-white focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-950 text-[11px] leading-relaxed flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>
+                  Siswa yang belum mengerjakan dapat langsung membuka ujian, dan siswa yang sudah selesai dapat mengambil ujian susulan/remedial.
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setReactivatingExam(null)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingReactivate || !reactivateEndDateInput}
+                onClick={async () => {
+                  if (!reactivatingExam) return;
+                  setIsSubmittingReactivate(true);
+                  try {
+                    const formatted = formatDateTimeInputToIndo(reactivateEndDateInput);
+                    const token = reactivateToken.trim() || reactivatingExam.token || 'PPLG26';
+                    const updates: Partial<OnlineExam> = {
+                      status: 'active',
+                      endDate: formatted,
+                      token: token.toUpperCase(),
+                    };
+                    if (onUpdateExam) {
+                      await onUpdateExam(reactivatingExam.id, updates);
+                    }
+                    setExamActionMessage({
+                      type: 'success',
+                      title: 'Ulangan CBT Berhasil Diaktifkan Kembali!',
+                      description: `Batas waktu ulangan telah diperbarui hingga ${formatted} dengan Token: ${token.toUpperCase()}. Akses siswa telah dibuka kembali.`,
+                    });
+                    setReactivatingExam(null);
+                  } catch (err) {
+                    console.error(err);
+                  } finally {
+                    setIsSubmittingReactivate(false);
+                  }
+                }}
+                className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-extrabold transition shadow-md shadow-amber-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                {isSubmittingReactivate ? 'Menyimpan...' : 'Aktifkan Ulangan'}
               </button>
             </div>
           </div>
