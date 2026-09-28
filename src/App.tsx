@@ -11,6 +11,7 @@ import {
   INITIAL_ANNOUNCEMENTS,
   INITIAL_SUBJECTS,
   INITIAL_MAJORS,
+  getRandomCartoonAvatar,
 } from './data/schoolData';
 import {
   User,
@@ -165,6 +166,15 @@ export default function App() {
     }
   };
 
+  const handleDeleteClass = async (classId: string) => {
+    try {
+      await api.deleteClass(classId);
+    } catch (err) {
+      console.error('Failed to delete class:', err);
+    }
+    setClasses((prev) => prev.filter((c) => c.id !== classId));
+  };
+
   const handleCreateUser = async (userData: Partial<User>) => {
     try {
       const created = await api.createUser(userData);
@@ -178,9 +188,7 @@ export default function App() {
         nip: userData.nip || '-',
         role: userData.role || 'student',
         titleRole: userData.titleRole || `Pengguna ${userData.role}`,
-        avatar:
-          userData.avatar ||
-          'https://api.dicebear.com/7.x/adventurer/svg?seed=Farhan&backgroundColor=b6e3f4',
+        avatar: userData.avatar || getRandomCartoonAvatar(userData.gender, userData.role),
         email: userData.email || 'user@smktb.sch.id',
         class: userData.class || '-',
         points: 1000,
@@ -1065,6 +1073,7 @@ export default function App() {
               }}
               onRefreshDbStatus={refreshDbStatus}
               onCreateClass={handleCreateClass}
+              onDeleteClass={handleDeleteClass}
               onCreateUser={handleCreateUser}
               onUpdateUser={handleUpdateUser}
               onDeleteUser={handleDeleteUser}

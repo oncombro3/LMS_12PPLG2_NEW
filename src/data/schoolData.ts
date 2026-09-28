@@ -21,6 +21,112 @@ export interface MajorDefinition {
   badgeClass: string;
 }
 
+export interface CartoonAvatarItem {
+  id: string;
+  name: string;
+  url: string;
+  gender: 'male' | 'female' | 'unisex';
+  category: 'student' | 'teacher' | 'tech' | 'staff';
+}
+
+export const CARTOON_AVATARS: CartoonAvatarItem[] = [
+  // Siswa Laki-laki (Adventurer)
+  { id: 'av-1', name: 'Farhan', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Farhan&backgroundColor=b6e3f4' },
+  { id: 'av-2', name: 'Aditya', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Aditya&backgroundColor=c0aede' },
+  { id: 'av-3', name: 'Bintang', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Bintang&backgroundColor=d1d4f9' },
+  { id: 'av-4', name: 'Dimas', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Dimas&backgroundColor=ffdfbf' },
+  { id: 'av-5', name: 'Bayu', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Bayu&backgroundColor=bbf7d0' },
+  { id: 'av-6', name: 'Rendy', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Rendy&backgroundColor=ffd5dc' },
+  { id: 'av-7', name: 'Kevin', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Kevin&backgroundColor=fed7aa' },
+  { id: 'av-8', name: 'Reza', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Reza&backgroundColor=e9d5ff' },
+  { id: 'av-9', name: 'Rafi', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Rafi&backgroundColor=b6e3f4' },
+  { id: 'av-10', name: 'Dani', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Dani&backgroundColor=c0aede' },
+  { id: 'av-11', name: 'Gilang', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Gilang&backgroundColor=d1d4f9' },
+  { id: 'av-12', name: 'Fajar', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Fajar&backgroundColor=ffdfbf' },
+  { id: 'av-45', name: 'Felix', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix&backgroundColor=c0aede' },
+  { id: 'av-48', name: 'Oliver', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Oliver&backgroundColor=b6e3f4' },
+  { id: 'av-49', name: 'Leo', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Leo&backgroundColor=fed7aa' },
+  { id: 'av-50', name: 'Milo', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Milo&backgroundColor=bbf7d0' },
+  { id: 'av-53', name: 'Max', gender: 'male', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Max&backgroundColor=ffdfbf' },
+
+  // Siswa Perempuan (Adventurer & Lorelei)
+  { id: 'av-13', name: 'Anisa', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Anisa&backgroundColor=ffd5dc' },
+  { id: 'av-14', name: 'Citra', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Citra&backgroundColor=ffd5dc' },
+  { id: 'av-15', name: 'Dina', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Dina&backgroundColor=c0aede' },
+  { id: 'av-16', name: 'Fatimah', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Fatimah&backgroundColor=b6e3f4' },
+  { id: 'av-17', name: 'Zahra', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Zahra&backgroundColor=fed7aa' },
+  { id: 'av-18', name: 'Naila', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Naila&backgroundColor=e9d5ff' },
+  { id: 'av-19', name: 'Putri', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Putri&backgroundColor=bbf7d0' },
+  { id: 'av-20', name: 'Maya', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Maya&backgroundColor=d1d4f9' },
+  { id: 'av-21', name: 'Sarah', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Sarah&backgroundColor=ffd5dc' },
+  { id: 'av-22', name: 'Tiara', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Tiara&backgroundColor=b6e3f4' },
+  { id: 'av-23', name: 'Bella', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Bella&backgroundColor=c0aede' },
+  { id: 'av-24', name: 'Salma', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Salma&backgroundColor=ffdfbf' },
+  { id: 'av-46', name: 'Aneka', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka&backgroundColor=ffd5dc' },
+  { id: 'av-47', name: 'Sophia', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Sophia&backgroundColor=d1d4f9' },
+  { id: 'av-51', name: 'Luna', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Luna&backgroundColor=ffd5dc' },
+  { id: 'av-52', name: 'Zoe', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Zoe&backgroundColor=e9d5ff' },
+  { id: 'av-54', name: 'Daisy', gender: 'female', category: 'student', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Daisy&backgroundColor=b6e3f4' },
+
+  // Guru & Tenaga Pendidik
+  { id: 'av-25', name: 'Hendra Teacher', gender: 'male', category: 'teacher', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=HendraTeacher&backgroundColor=b6e3f4' },
+  { id: 'av-26', name: 'Dewi Teacher', gender: 'female', category: 'teacher', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=DewiTeacher&backgroundColor=ffd5dc' },
+  { id: 'av-27', name: 'Prof Aris', gender: 'male', category: 'teacher', url: 'https://api.dicebear.com/7.x/micah/svg?seed=ProfAris&backgroundColor=ffd5dc' },
+  { id: 'av-28', name: 'Ratna Teacher', gender: 'female', category: 'teacher', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=RatnaTeacher&backgroundColor=d1d4f9' },
+  { id: 'av-29', name: 'Fauzi Teacher', gender: 'male', category: 'teacher', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=FauziTeacher&backgroundColor=c0aede' },
+  { id: 'av-30', name: 'Siti Teacher', gender: 'female', category: 'teacher', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=SitiTeacher&backgroundColor=ffd5dc' },
+  { id: 'av-31', name: 'Wahyu Teacher', gender: 'male', category: 'teacher', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=WahyuTeacher&backgroundColor=b6e3f4' },
+  { id: 'av-32', name: 'Maya Teacher', gender: 'female', category: 'teacher', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=MayaTeacher&backgroundColor=fed7aa' },
+  { id: 'av-33', name: 'Agus Teacher', gender: 'male', category: 'teacher', url: 'https://api.dicebear.com/7.x/micah/svg?seed=AgusTeacher&backgroundColor=bbf7d0' },
+  { id: 'av-34', name: 'Indah Teacher', gender: 'female', category: 'teacher', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=IndahTeacher&backgroundColor=e9d5ff' },
+
+  // Admin IT & Staf Eksekutif
+  { id: 'av-35', name: 'Farhan Tech Bot', gender: 'unisex', category: 'tech', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FarhanTech&backgroundColor=b6e3f4' },
+  { id: 'av-36', name: 'CyberBot', gender: 'unisex', category: 'tech', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=CyberBot&backgroundColor=c0aede' },
+  { id: 'av-37', name: 'PixelBot', gender: 'unisex', category: 'tech', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=PixelBot&backgroundColor=ffd5dc' },
+  { id: 'av-38', name: 'Sparky Bot', gender: 'unisex', category: 'tech', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Sparky&backgroundColor=d1d4f9' },
+  { id: 'av-39', name: 'Neon Coder', gender: 'unisex', category: 'tech', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=NeonCoder&backgroundColor=ffdfbf' },
+  { id: 'av-40', name: 'Robo Helper', gender: 'unisex', category: 'tech', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=RoboHelper&backgroundColor=bbf7d0' },
+  { id: 'av-41', name: 'Alpha Bot', gender: 'unisex', category: 'tech', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=AlphaBot&backgroundColor=fed7aa' },
+  { id: 'av-42', name: 'Turbo Droid', gender: 'unisex', category: 'tech', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=TurboDroid&backgroundColor=e9d5ff' },
+  { id: 'av-43', name: 'Quantum Bot', gender: 'unisex', category: 'tech', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Quantum&backgroundColor=b6e3f4' },
+  { id: 'av-44', name: 'Byte Bot', gender: 'unisex', category: 'tech', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Byte&backgroundColor=c0aede' },
+  { id: 'av-55', name: 'Kurikulum Bu Siti', gender: 'female', category: 'staff', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=KurikulumSiti&backgroundColor=e0e7ff' },
+  { id: 'av-56', name: 'Kepsek Pak Suryanto', gender: 'male', category: 'staff', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=KepsekSuryanto&backgroundColor=b6e3f4' },
+];
+
+export function getRandomCartoonAvatar(gender?: string, role?: string): string {
+  let pool = CARTOON_AVATARS;
+  if (role === 'admin') {
+    pool = CARTOON_AVATARS.filter((a) => a.category === 'tech' || a.category === 'staff');
+  } else if (role === 'teacher') {
+    if (gender === 'Perempuan') {
+      pool = CARTOON_AVATARS.filter((a) => a.category === 'teacher' && a.gender === 'female');
+    } else if (gender === 'Laki-laki') {
+      pool = CARTOON_AVATARS.filter((a) => a.category === 'teacher' && a.gender === 'male');
+    } else {
+      pool = CARTOON_AVATARS.filter((a) => a.category === 'teacher');
+    }
+  } else if (role === 'kepalasekolah') {
+    pool = CARTOON_AVATARS.filter((a) => a.id === 'av-56' || (a.category === 'staff' && a.gender === 'male') || a.category === 'teacher');
+  } else if (role === 'kurikulum') {
+    pool = CARTOON_AVATARS.filter((a) => a.id === 'av-55' || (a.category === 'staff' && a.gender === 'female') || a.category === 'teacher');
+  } else {
+    // Siswa (student)
+    if (gender === 'Perempuan') {
+      pool = CARTOON_AVATARS.filter((a) => a.gender === 'female' && a.category === 'student');
+    } else if (gender === 'Laki-laki') {
+      pool = CARTOON_AVATARS.filter((a) => a.gender === 'male' && a.category === 'student');
+    } else {
+      pool = CARTOON_AVATARS.filter((a) => a.category === 'student');
+    }
+  }
+
+  if (!pool || pool.length === 0) pool = CARTOON_AVATARS;
+  const randomIndex = Math.floor(Math.random() * pool.length);
+  return pool[randomIndex].url;
+}
+
 export const INITIAL_MAJORS: MajorItem[] = [
   {
     id: 'mjr-pplg',

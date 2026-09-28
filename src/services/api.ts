@@ -59,6 +59,14 @@ export const api = {
     return await res.json();
   },
 
+  async deleteClass(classId: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`/api/classes/${classId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete class');
+    return await res.json();
+  },
+
   async getUsers(params?: { role?: string; class?: string }): Promise<User[]> {
     const query = new URLSearchParams();
     if (params?.role) query.append('role', params.role);

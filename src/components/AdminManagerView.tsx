@@ -33,11 +33,12 @@ import {
   Edit3,
   Lock,
   Save,
-  AlertCircle
+  AlertCircle,
+  Shuffle,
 } from 'lucide-react';
 import { User, ClassRoom, UserRole, SubjectItem, MajorItem } from '../types';
 import { DbServerStatus } from '../services/api';
-import { OFFICIAL_MAJORS, INITIAL_SUBJECTS, INITIAL_MAJORS } from '../data/schoolData';
+import { OFFICIAL_MAJORS, INITIAL_SUBJECTS, INITIAL_MAJORS, getRandomCartoonAvatar } from '../data/schoolData';
 import { AdminSubjectsTab } from './AdminSubjectsTab';
 import { AdminMajorsTab } from './AdminMajorsTab';
 
@@ -70,6 +71,7 @@ interface AdminManagerViewProps {
     isPlus?: boolean;
     homeroomTeacher?: string;
   }) => Promise<void>;
+  onDeleteClass?: (classId: string) => Promise<void>;
   onCreateUser: (userData: Partial<User>) => Promise<void>;
   onUpdateUser: (userId: string, updates: Partial<User>) => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
@@ -91,6 +93,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   onSubTabChange,
   onRefreshDbStatus,
   onCreateClass,
+  onDeleteClass,
   onCreateUser,
   onUpdateUser,
   onDeleteUser,
@@ -112,6 +115,43 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   // Modal Konfirmasi Hapus Data Pengguna (Pop-up Konfirmasi / Batal)
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
+
+  // Modal Konfirmasi Hapus Rombel Kelas
+  const [classToDelete, setClassToDelete] = useState<ClassRoom | null>(null);
+  const [isDeletingClass, setIsDeletingClass] = useState(false);
+
+  // Modal Detail Kelas & Daftar Siswa Masuk
+  const [viewingClass, setViewingClass] = useState<ClassRoom | null>(null);
+  const [viewingClassSearch, setViewingClassSearch] = useState('');
+
+  // Helper: Dapatkan daftar siswa yang masuk pada suatu kelas
+  const getStudentsInClass = (targetClass: ClassRoom) => {
+    return users.filter((u) => {
+      if (u.role !== 'student') return false;
+      const uClass = (u.class || '').trim().toLowerCase();
+      const cName = (targetClass.name || '').trim().toLowerCase();
+      const cId = (targetClass.id || '').trim().toLowerCase();
+      return uClass === cName || uClass === cId;
+    });
+  };
+
+  const handleConfirmDeleteClass = async () => {
+    if (!classToDelete) return;
+    setIsDeletingClass(true);
+    try {
+      if (onDeleteClass) {
+        await onDeleteClass(classToDelete.id);
+      }
+      if (viewingClass?.id === classToDelete.id) {
+        setViewingClass(null);
+      }
+      setClassToDelete(null);
+    } catch (err) {
+      console.error('Failed to delete class:', err);
+    } finally {
+      setIsDeletingClass(false);
+    }
+  };
 
   const handleConfirmDeleteUser = async () => {
     if (!userToDelete) return;
@@ -156,6 +196,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   const [regClass, setRegClass] = useState(classes[0]?.name || '12 PPLG 2');
   const [regSubject, setRegSubject] = useState('Pemrograman Web (PWPB)');
   const [regGender, setRegGender] = useState('Laki-laki');
+  const [regAvatar, setRegAvatar] = useState<string>(() => getRandomCartoonAvatar('Laki-laki', 'student'));
   const [regPhone, setRegPhone] = useState('');
   const [isSubmittingUser, setIsSubmittingUser] = useState(false);
   const [userSuccessMsg, setUserSuccessMsg] = useState('');
@@ -171,6 +212,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   const [editNip, setEditNip] = useState('');
   const [editMajorCode, setEditMajorCode] = useState('PPLG');
   const [editClass, setEditClass] = useState('');
+  const [editAvatar, setEditAvatar] = useState<string>('');
   const [editSubjectTaught, setEditSubjectTaught] = useState('');
   const [editTitleRole, setEditTitleRole] = useState('');
   const [editGender, setEditGender] = useState('Laki-laki');
@@ -179,6 +221,8 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [editSuccessMsg, setEditSuccessMsg] = useState('');
   const [editErrorMsg, setEditErrorMsg] = useState('');
+
+
 
   const handleOpenEditUser = (u: User) => {
     setEditingUser(u);
@@ -199,6 +243,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
       'PPLG';
     setEditMajorCode(userMajorCode);
     setEditClass(u.class || (classes[0]?.name || '12 PPLG 2'));
+    setEditAvatar(u.avatar || getRandomCartoonAvatar(u.gender, u.role));
     setEditSubjectTaught(u.subjectTaught || 'Pemrograman Web (PWPB)');
     setEditTitleRole(u.titleRole || '');
     setEditGender(u.gender || 'Laki-laki');
@@ -223,6 +268,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
       await onUpdateUser(editingUser.id, {
         name: editName,
         email: editEmail,
+        avatar: editAvatar || editingUser.avatar || getRandomCartoonAvatar(editGender, editRole),
         password: editPassword,
         role: editRole,
         nisn: editRole === 'student' ? editNisn : '-',
@@ -284,6 +330,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
         name: regName,
         email: regEmail,
         password: regPassword || 'password123',
+        avatar: regAvatar || getRandomCartoonAvatar(regGender, regRole),
         role: regRole,
         nisn: regRole === 'student' ? regNisn : '-',
         nip: regRole !== 'student' ? regNip : '-',
@@ -303,6 +350,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
       setRegNisn('');
       setRegNip('');
       setRegPhone('');
+      setRegAvatar(getRandomCartoonAvatar(regGender, regRole));
       setTimeout(() => setUserSuccessMsg(''), 4000);
     } catch (err: any) {
       console.error(err);
@@ -585,7 +633,11 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                   <button
                     key={r.id}
                     type="button"
-                    onClick={() => setRegRole(r.id as UserRole)}
+                    onClick={() => {
+                      const newRole = r.id as UserRole;
+                      setRegRole(newRole);
+                      setRegAvatar(getRandomCartoonAvatar(regGender, newRole));
+                    }}
                     className={`p-3 rounded-2xl border text-left transition-all ${
                       regRole === r.id
                         ? 'bg-indigo-50/80 border-indigo-600 ring-2 ring-indigo-500/20 text-indigo-900 font-extrabold'
@@ -596,6 +648,44 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                     <div className="text-[10px] text-slate-500 font-normal mt-0.5">{r.desc}</div>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Foto Profil Avatar Kartun Otomatis (DiceBear Edition - Bukan Muka Orang Asli) */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-indigo-50/90 via-sky-50/40 to-indigo-50/90 border border-indigo-200/90 rounded-2xl space-y-3.5 shadow-2xs">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5 w-full sm:w-auto">
+                  <div className="relative group shrink-0">
+                    <img
+                      src={regAvatar}
+                      alt="Preset Avatar Kartun"
+                      className="w-16 h-16 rounded-2xl bg-white p-1 border-2 border-indigo-400 shadow-sm object-cover ring-2 ring-indigo-200"
+                    />
+                    <div className="absolute -bottom-1 -right-1 p-1 bg-indigo-600 text-white rounded-full text-[9px] shadow-xs" title="Preset Avatar Kartun Aktif">
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-black text-slate-900">Preset Foto Profil: Avatar Kartun (Random)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1 max-w-xl leading-relaxed">
+                      Saat admin menambahkan akun baru, foto profil otomatis diisi secara acak dari koleksi avatar yang tersedia di sistem sekolah.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setRegAvatar(getRandomCartoonAvatar(regGender, regRole))}
+                    className="px-3 py-2 bg-white hover:bg-indigo-600 hover:text-white text-indigo-700 border border-indigo-200 hover:border-indigo-600 rounded-xl font-extrabold text-xs transition flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer"
+                    title="Acak avatar kartun baru dari data"
+                  >
+                    <Shuffle className="w-3.5 h-3.5" />
+                    <span>Acak Kartun Baru</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -755,8 +845,12 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                 <label className="block font-bold text-slate-700 mb-1">Jenis Kelamin</label>
                 <select
                   value={regGender}
-                  onChange={(e) => setRegGender(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  onChange={(e) => {
+                    const g = e.target.value;
+                    setRegGender(g);
+                    setRegAvatar(getRandomCartoonAvatar(g, regRole));
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 font-bold"
                 >
                   <option value="Laki-laki">Laki-laki</option>
                   <option value="Perempuan">Perempuan</option>
@@ -955,34 +1049,101 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
 
           {/* List of Created Classes */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-            <h3 className="font-extrabold text-slate-900 text-sm sm:text-base flex items-center gap-2">
-              <School className="w-4 h-4 text-indigo-600" />
-              Daftar Kelas yang Telah Dibuat Admin ({classes.length} Rombel)
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {classes.map((cls) => (
-                <div key={cls.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-black text-sm text-indigo-900">{cls.name}</span>
-                      {(cls.isPlus || cls.name.includes('+')) && (
-                        <span className="text-[10px] font-black px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
-                          + Plus
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
-                      Kelas {cls.gradeLevel}
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-600 font-medium">{cls.majorName}</div>
-                  <div className="text-[11px] text-slate-500 border-t border-slate-200/60 pt-2 space-y-1">
-                    <div>Tahun Ajaran: {cls.academicYear}</div>
-                  </div>
-                </div>
-              ))}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-sm sm:text-base flex items-center gap-2">
+                  <School className="w-4 h-4 text-indigo-600" />
+                  Daftar Kelas yang Telah Dibuat Admin ({classes.length} Rombel)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Klik <strong>Lihat Siswa</strong> untuk melihat daftar siswa di rombel ini, atau <strong>Hapus</strong> untuk menghapus rombel kelas.
+                </p>
+              </div>
             </div>
+
+            {classes.length === 0 ? (
+              <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-6 space-y-2">
+                <School className="w-10 h-10 text-slate-300 mx-auto" />
+                <p className="text-sm font-bold text-slate-600">Belum Ada Rombel Kelas yang Dibuat</p>
+                <p className="text-xs text-slate-400">Silakan gunakan formulir pembuatan rombel di atas untuk membuat kelas baru.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {classes.map((cls) => {
+                  const classStudents = getStudentsInClass(cls);
+                  return (
+                    <div
+                      key={cls.id}
+                      className="p-4 bg-slate-50 hover:bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 transition-all shadow-2xs hover:shadow-xs space-y-3 flex flex-col justify-between"
+                    >
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-black text-sm text-indigo-950">{cls.name}</span>
+                            {(cls.isPlus || cls.name.includes('+')) && (
+                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-0.5">
+                                <Sparkles className="w-2.5 h-2.5 text-amber-600" /> + Plus
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                            Kelas {cls.gradeLevel}
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-slate-700 font-semibold">{cls.majorName}</div>
+
+                        <div className="text-[11px] text-slate-500 space-y-1 bg-white/70 p-2.5 rounded-xl border border-slate-200/60">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">Tahun Ajaran:</span>
+                            <span className="font-bold text-slate-700">{cls.academicYear}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">Guru/Wali:</span>
+                            <span className="font-bold text-slate-700 truncate max-w-[140px]" title={cls.homeroomTeacher || 'Belum Ditentukan'}>
+                              {cls.homeroomTeacher || 'Belum Ditentukan'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                            <span className="text-slate-500 flex items-center gap-1">
+                              <Users className="w-3.5 h-3.5 text-indigo-600" /> Siswa Terdaftar:
+                            </span>
+                            <span className="font-black text-indigo-700 px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-100 text-[11px]">
+                              {classStudents.length} Siswa
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action buttons: Lihat Siswa & Hapus Kelas */}
+                      <div className="pt-2 border-t border-slate-200/70 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setViewingClass(cls);
+                            setViewingClassSearch('');
+                          }}
+                          className="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                          title="Lihat detail kelas dan siswa mana saja yang masuk kelas ini"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Lihat Siswa ({classStudents.length})</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setClassToDelete(cls)}
+                          className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 border border-rose-200 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                          title="Hapus rombel kelas ini"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Hapus</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1846,7 +2007,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
       {/* MODAL BIODATA LENGKAP PENGGUNA                                           */}
       {/* ========================================================================= */}
       {selectedUserForBio && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 border border-slate-200 shadow-2xl space-y-5 animate-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
@@ -1974,7 +2135,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
       {/* MODAL EDIT DATA PENGGUNA TERDAFTAR                                       */}
       {/* ========================================================================= */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-slate-200 shadow-2xl space-y-6 animate-in zoom-in-95 my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">
@@ -2013,6 +2174,45 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
             )}
 
             <form onSubmit={handleSaveEditUser} className="space-y-4 text-xs">
+              {/* Foto Profil Avatar Kartun Pengguna (DiceBear Karakter) */}
+              <div className="p-3.5 bg-gradient-to-r from-amber-50/80 via-slate-50 to-amber-50/80 border border-amber-200/90 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="relative group shrink-0">
+                    <img
+                      src={editAvatar || editingUser.avatar || getRandomCartoonAvatar(editGender, editRole)}
+                      alt="Avatar Pengguna"
+                      className="w-14 h-14 rounded-2xl bg-white p-1 border-2 border-amber-400 shadow-sm object-cover ring-2 ring-amber-200"
+                    />
+                    <div className="absolute -bottom-1 -right-1 p-1 bg-amber-600 text-white rounded-full text-[9px] shadow-xs">
+                      <Sparkles className="w-3 h-3" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-black text-slate-900">Foto Profil: Avatar Kartun</span>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                        Koleksi Data Kartun
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Ganti avatar akun dengan karakter kartun acak dari koleksi sistem data.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setEditAvatar(getRandomCartoonAvatar(editGender, editRole))}
+                    className="px-3 py-1.5 bg-white hover:bg-amber-600 hover:text-white text-amber-700 border border-amber-200 rounded-xl font-extrabold text-xs transition flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+                    title="Acak avatar kartun baru dari data"
+                  >
+                    <Shuffle className="w-3.5 h-3.5" />
+                    <span>Acak Kartun</span>
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block font-bold text-slate-700 mb-1">
@@ -2256,7 +2456,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
       {/* MODAL: POP-UP KONFIRMASI / BATAL HAPUS DATA PENGGUNA                      */}
       {/* ========================================================================= */}
       {userToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200">
             <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-xs">
               <Trash2 className="w-6 h-6" />
@@ -2304,6 +2504,331 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: DETAIL KELAS & DAFTAR SISWA MASUK KELAS INI                        */}
+      {/* ========================================================================= */}
+      {viewingClass && (() => {
+        const viewingStudents = getStudentsInClass(viewingClass);
+        const filteredViewingStudents = viewingStudents.filter((s) => {
+          const q = viewingClassSearch.toLowerCase().trim();
+          if (!q) return true;
+          return (
+            s.name.toLowerCase().includes(q) ||
+            (s.nisn && s.nisn.toLowerCase().includes(q)) ||
+            (s.email && s.email.toLowerCase().includes(q))
+          );
+        });
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+              {/* Header */}
+              <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-3 bg-gradient-to-r from-indigo-50/60 to-white">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-100 shrink-0">
+                    <School className="w-6 h-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-black text-slate-900 text-base sm:text-lg">
+                        Rombel {viewingClass.name}
+                      </h3>
+                      {(viewingClass.isPlus || viewingClass.name.includes('+')) && (
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                          <Sparkles className="w-2.5 h-2.5 text-amber-600" /> Kelas + (Unggulan)
+                        </span>
+                      )}
+                      <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                        Kelas {viewingClass.gradeLevel}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                      {viewingClass.majorName} • Tahun Ajaran {viewingClass.academicYear}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setViewingClass(null)}
+                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer shrink-0"
+                  title="Tutup dialog"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Class Info Summary Card */}
+              <div className="px-5 sm:px-6 pt-4 pb-3 bg-slate-50/70 border-b border-slate-100">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-200/70 shadow-2xs">
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Jurusan</span>
+                    <span className="font-extrabold text-slate-800 truncate block mt-0.5" title={viewingClass.majorName}>
+                      {viewingClass.majorCode || viewingClass.majorName}
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-200/70 shadow-2xs">
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Guru/Wali Kelas</span>
+                    <span className="font-extrabold text-slate-800 truncate block mt-0.5" title={viewingClass.homeroomTeacher || 'Belum Ditentukan'}>
+                      {viewingClass.homeroomTeacher || 'Belum Ditentukan'}
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-200/70 shadow-2xs">
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Tahun Ajaran</span>
+                    <span className="font-extrabold text-slate-800 block mt-0.5">
+                      {viewingClass.academicYear}
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-indigo-50 border border-indigo-200/70 rounded-xl shadow-2xs">
+                    <span className="text-[10px] font-bold text-indigo-600 block uppercase tracking-wider">Siswa Terdaftar</span>
+                    <span className="font-black text-indigo-900 text-sm block mt-0.5">
+                      {viewingStudents.length} Siswa Masuk
+                    </span>
+                  </div>
+                </div>
+
+                {/* Search Bar for Students */}
+                <div className="mt-3 relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={viewingClassSearch}
+                    onChange={(e) => setViewingClassSearch(e.target.value)}
+                    placeholder={`Cari dari ${viewingStudents.length} siswa di rombel ${viewingClass.name} (nama, NISN, email)...`}
+                    className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                  {viewingClassSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setViewingClassSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Student List Body */}
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-3">
+                <div className="flex items-center justify-between text-xs text-slate-500 font-bold px-1">
+                  <span className="flex items-center gap-1.5 text-slate-800">
+                    <GraduationCap className="w-4 h-4 text-indigo-600" />
+                    Daftar Siswa yang Masuk ke Rombel Ini
+                  </span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                    {filteredViewingStudents.length} dari {viewingStudents.length} Siswa
+                  </span>
+                </div>
+
+                {viewingStudents.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-6 space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center mx-auto">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-slate-800 text-sm">Belum Ada Siswa di Kelas {viewingClass.name}</h4>
+                      <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
+                        Saat ini belum ada akun siswa yang ditempatkan di rombel ini. Anda dapat mendaftarkan siswa baru langsung ke rombel ini atau mengubah penempatan kelas siswa yang sudah ada.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRegRole('student');
+                        setRegClass(viewingClass.name);
+                        setActiveAdminTab('register');
+                        setViewingClass(null);
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Daftarkan Siswa Baru ke Kelas Ini
+                    </button>
+                  </div>
+                ) : filteredViewingStudents.length === 0 ? (
+                  <div className="text-center py-8 bg-slate-50 rounded-2xl border border-slate-200 p-6">
+                    <Search className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-xs font-bold text-slate-600">
+                      Tidak ada siswa yang cocok dengan kata kunci &quot;{viewingClassSearch}&quot;
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setViewingClassSearch('')}
+                      className="mt-2 text-xs font-bold text-indigo-600 hover:underline cursor-pointer"
+                    >
+                      Reset Pencarian
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {filteredViewingStudents.map((st, idx) => (
+                      <div
+                        key={st.id}
+                        className="p-3 bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 transition-all shadow-2xs hover:shadow-xs flex items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200 flex items-center justify-center">
+                            {st.avatar ? (
+                              <img src={st.avatar} alt={st.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <GraduationCap className="w-5 h-5 text-slate-400" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-extrabold text-xs text-slate-900 truncate" title={st.name}>
+                                {st.name}
+                              </span>
+                              <span className="text-[9px] px-1.5 py-0.2 rounded-md font-bold bg-slate-100 text-slate-600">
+                                {st.gender || 'Laki-laki'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-mono">
+                              NISN: <span className="font-bold text-slate-700">{st.nisn || '-'}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">
+                              {st.email}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedUserForBio(st)}
+                            className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition cursor-pointer"
+                            title="Lihat Biodata Lengkap Siswa"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditUser(st)}
+                            className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer"
+                            title="Edit Data Siswa"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClassToDelete(viewingClass);
+                  }}
+                  className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 border border-rose-200 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Hapus Kelas Ini
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegRole('student');
+                      setRegClass(viewingClass.name);
+                      setActiveAdminTab('register');
+                      setViewingClass(null);
+                    }}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    Tambah Siswa ke Kelas Ini
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewingClass(null)}
+                    className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-bold text-xs transition cursor-pointer"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ========================================================================= */}
+      {/* MODAL: POP-UP KONFIRMASI HAPUS ROMBEL KELAS                               */}
+      {/* ========================================================================= */}
+      {classToDelete && (() => {
+        const enrolledStudents = getStudentsInClass(classToDelete);
+        return (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-xs">
+                <Trash2 className="w-6 h-6" />
+              </div>
+
+              <div className="text-center space-y-1.5">
+                <h3 className="text-base font-extrabold text-slate-900">
+                  Konfirmasi Hapus Rombel Kelas?
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Apakah Anda yakin ingin menghapus rombel kelas{' '}
+                  <strong className="text-slate-800 font-bold">{classToDelete.name}</strong>{' '}
+                  ({classToDelete.majorName})?
+                </p>
+
+                {enrolledStudents.length > 0 ? (
+                  <div className="bg-amber-50 text-amber-800 border border-amber-200 p-3 rounded-2xl text-[11px] text-left mt-2 space-y-1">
+                    <div className="font-extrabold flex items-center gap-1.5 text-amber-900">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      Perhatian: Ada {enrolledStudents.length} Siswa di Kelas Ini!
+                    </div>
+                    <p className="text-amber-700 leading-normal">
+                      Menghapus kelas tidak akan menghapus akun siswa dari server sekolah, namun siswa-siswa tersebut perlu Anda pindahkan ke rombel kelas lain melalui tab Akun Siswa.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 text-slate-600 border border-slate-200 p-2.5 rounded-xl text-[11px] text-left mt-2">
+                    Kelas ini belum memiliki siswa terdaftar dan dapat dihapus dengan aman.
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setClassToDelete(null)}
+                  disabled={isDeletingClass}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteClass}
+                  disabled={isDeletingClass}
+                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold rounded-xl transition shadow-md shadow-rose-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isDeletingClass ? (
+                    'Menghapus...'
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Ya, Hapus Kelas
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+
     </div>
   );
 };

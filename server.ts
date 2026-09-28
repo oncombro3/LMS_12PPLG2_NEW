@@ -18,7 +18,7 @@ import {
   MajorModel,
   inMemoryStore,
 } from './server/db';
-import { EXECUTIVE_DATA } from './src/data/schoolData';
+import { EXECUTIVE_DATA, getRandomCartoonAvatar } from './src/data/schoolData';
 
 async function startServer() {
   const app = express();
@@ -94,6 +94,22 @@ async function startServer() {
     }
   });
 
+  // Delete class (Admin only)
+  app.delete('/api/classes/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isMongoConnected } = getDbStatus();
+      if (isMongoConnected) {
+        await ClassRoomModel.deleteOne({ id });
+        return res.json({ success: true, message: 'Class deleted successfully' });
+      }
+      inMemoryStore.classes = (inMemoryStore.classes as any[]).filter((c: any) => c.id !== id);
+      return res.json({ success: true, message: 'Class deleted successfully' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Get all users (filtered by role or class)
   app.get('/api/users', async (req, res) => {
     try {
@@ -139,10 +155,7 @@ async function startServer() {
             ? 'Kepala Sekolah'
             : 'Admin IT'),
         avatar:
-          userData.avatar ||
-          (userData.gender === 'Perempuan'
-            ? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80'
-            : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'),
+          userData.avatar || getRandomCartoonAvatar(userData.gender, userData.role),
         email: userData.email,
         class: userData.class || '-',
         points: Number(userData.points) || 1000,
@@ -471,7 +484,7 @@ async function startServer() {
         title: examData.title,
         subject: examData.subject || 'Produktif PPLG',
         teacher: examData.teacher || 'Hendra Setiawan, M.Kom.',
-        teacherAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=120&auto=format&fit=crop&q=80',
+        teacherAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=HendraTeacher&backgroundColor=b6e3f4',
         targetClass: examData.targetClass || 'XII PPLG 2',
         examType: examData.examType || 'Ulangan Harian',
         token: (examData.token || 'PPLG26').toUpperCase(),
@@ -874,7 +887,7 @@ async function startServer() {
         title: data.title,
         subject: data.subject || 'PWPB',
         teacher: data.teacher || 'Hendra Setiawan, M.Kom.',
-        teacherAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=120&auto=format&fit=crop&q=80',
+        teacherAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=HendraTeacher&backgroundColor=b6e3f4',
         targetClass: data.targetClass || 'XII PPLG 2',
         chapter: data.chapter || 'Bab Materi Baru',
         type: data.type || 'document',
