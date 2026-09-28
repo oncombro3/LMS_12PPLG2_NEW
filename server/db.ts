@@ -10,6 +10,7 @@ import {
   INITIAL_ATTENDANCE,
   INITIAL_ANNOUNCEMENTS,
   INITIAL_SUBJECTS,
+  INITIAL_MAJORS,
 } from '../src/data/schoolData';
 
 // --- Mongoose Schemas ---
@@ -47,6 +48,9 @@ const UserSchema = new Schema(
     titleRole: String,
     gender: String,
     phoneNumber: String,
+    majorCode: String,
+    majorName: String,
+    jurusan: String,
     subjectTaught: String,
     password: { type: String, default: 'password123' },
     status: { type: String, default: 'Aktif' },
@@ -314,6 +318,23 @@ const SubjectSchema = new Schema(
   { timestamps: true }
 );
 
+const MajorSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    code: { type: String, required: true },
+    name: { type: String, required: true },
+    category: { type: String, default: 'Teknologi Informasi & Software' },
+    color: { type: String, default: 'indigo' },
+    badgeClass: String,
+    description: String,
+    skills: [String],
+    careerProspects: [String],
+    headOfDepartment: { type: String, default: 'Belum Ditugaskan' },
+    createdAt: String,
+  },
+  { timestamps: true }
+);
+
 // Models
 export const ClassRoomModel = mongoose.models.ClassRoom || mongoose.model('ClassRoom', ClassRoomSchema);
 export const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
@@ -325,6 +346,7 @@ export const QuizModel = mongoose.models.Quiz || mongoose.model('Quiz', QuizSche
 export const AttendanceModel = mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema);
 export const AnnouncementModel = mongoose.models.Announcement || mongoose.model('Announcement', AnnouncementSchema);
 export const SubjectModel = mongoose.models.Subject || mongoose.model('Subject', SubjectSchema);
+export const MajorModel = mongoose.models.Major || mongoose.model('Major', MajorSchema);
 
 // In-Memory Storage Fallback (used when MongoDB URI is offline or initializing)
 export const inMemoryStore = {
@@ -338,6 +360,7 @@ export const inMemoryStore = {
   attendance: JSON.parse(JSON.stringify(INITIAL_ATTENDANCE)),
   announcements: JSON.parse(JSON.stringify(INITIAL_ANNOUNCEMENTS)),
   subjects: JSON.parse(JSON.stringify(INITIAL_SUBJECTS)),
+  majors: JSON.parse(JSON.stringify(INITIAL_MAJORS)),
 };
 
 let isMongoConnected = false;
@@ -434,6 +457,12 @@ async function seedMongoIfEmpty() {
     if (subjectCount === 0) {
       console.log('🌱 [MongoDB Atlas] Seeding initial school subjects...');
       await SubjectModel.insertMany(INITIAL_SUBJECTS);
+    }
+
+    const majorCount = await MajorModel.countDocuments();
+    if (majorCount === 0) {
+      console.log('🌱 [MongoDB Atlas] Seeding initial school majors...');
+      await MajorModel.insertMany(INITIAL_MAJORS);
     }
     console.log('✅ [MongoDB Atlas] Seeding check completed.');
   } catch (err: any) {

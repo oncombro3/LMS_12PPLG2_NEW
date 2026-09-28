@@ -10,6 +10,7 @@ import {
   ExecutiveStats,
   Announcement,
   SubjectItem,
+  MajorItem,
 } from '../types';
 
 export interface DbServerStatus {
@@ -128,6 +129,41 @@ export const api = {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to delete subject');
+    return await res.json();
+  },
+
+  // 0.2 Majors Management (Admin)
+  async getMajors(): Promise<MajorItem[]> {
+    const res = await fetch('/api/majors');
+    if (!res.ok) throw new Error('Failed to fetch majors');
+    return await res.json();
+  },
+
+  async createMajor(majorData: Partial<MajorItem>): Promise<MajorItem> {
+    const res = await fetch('/api/majors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(majorData),
+    });
+    if (!res.ok) throw new Error('Failed to create major');
+    return await res.json();
+  },
+
+  async updateMajor(majorId: string, updates: Partial<MajorItem>): Promise<MajorItem> {
+    const res = await fetch(`/api/majors/${majorId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error('Failed to update major');
+    return await res.json();
+  },
+
+  async deleteMajor(majorId: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`/api/majors/${majorId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete major');
     return await res.json();
   },
 

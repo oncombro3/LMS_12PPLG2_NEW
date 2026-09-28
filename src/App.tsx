@@ -10,6 +10,7 @@ import {
   INITIAL_INTERACTIVE_QUIZZES,
   INITIAL_ANNOUNCEMENTS,
   INITIAL_SUBJECTS,
+  INITIAL_MAJORS,
 } from './data/schoolData';
 import {
   User,
@@ -23,6 +24,7 @@ import {
   Announcement,
   ExamResult,
   SubjectItem,
+  MajorItem,
 } from './types';
 import { Navbar } from './components/Navbar';
 import { Sidebar, TabType } from './components/Sidebar';
@@ -59,6 +61,7 @@ export default function App() {
   const [classes, setClasses] = useState<ClassRoom[]>(INITIAL_CLASSES);
   const [usersRoster, setUsersRoster] = useState<User[]>(INITIAL_USERS_ROSTER);
   const [subjects, setSubjects] = useState<SubjectItem[]>(INITIAL_SUBJECTS);
+  const [majors, setMajors] = useState<MajorItem[]>(INITIAL_MAJORS);
   const [dbStatus, setDbStatus] = useState<DbServerStatus | null>(null);
 
   // Main School Activity States
@@ -88,10 +91,11 @@ export default function App() {
     const fetchData = async () => {
       try {
         refreshDbStatus();
-        const [clsList, uList, subjList, exList, tList, assList, matList, qList, annList] = await Promise.all([
+        const [clsList, uList, subjList, mjrList, exList, tList, assList, matList, qList, annList] = await Promise.all([
           api.getClasses().catch(() => INITIAL_CLASSES),
           api.getUsers().catch(() => INITIAL_USERS_ROSTER),
           api.getSubjects().catch(() => INITIAL_SUBJECTS),
+          api.getMajors().catch(() => INITIAL_MAJORS),
           api.getExams().catch(() => INITIAL_ONLINE_EXAMS),
           api.getTasks().catch(() => INITIAL_DAILY_TASKS),
           api.getAssessments().catch(() => INITIAL_ASSESSMENTS),
@@ -103,6 +107,7 @@ export default function App() {
         if (clsList?.length) setClasses(clsList);
         if (uList?.length) setUsersRoster(uList);
         if (subjList?.length) setSubjects(subjList);
+        if (mjrList?.length) setMajors(mjrList);
         if (exList?.length) setExams(exList);
         if (tList?.length) setTasks(tList);
         if (assList?.length) setAssessments(assList);
@@ -259,6 +264,50 @@ export default function App() {
       console.error(err);
     }
     setSubjects((prev) => prev.filter((s) => s.id !== subjectId));
+  };
+
+  // --- Handlers: Manajemen Jurusan (Admin Master Majors) ---
+  const handleCreateMajor = async (majorData: Partial<MajorItem>) => {
+    try {
+      const created = await api.createMajor(majorData);
+      setMajors((prev) => [created, ...prev]);
+    } catch (err) {
+      console.error(err);
+      const cleanCode = (majorData.code || 'JURUSAN').trim().toUpperCase();
+      const fallback: MajorItem = {
+        id: `mjr-${cleanCode.toLowerCase()}-${Date.now().toString().slice(-4)}`,
+        code: cleanCode,
+        name: majorData.name || 'Program Keahlian',
+        category: majorData.category || 'Teknologi Informasi & Software',
+        color: majorData.color || 'indigo',
+        badgeClass: majorData.badgeClass || `bg-${majorData.color || 'indigo'}-100 text-${majorData.color || 'indigo'}-800 border-${majorData.color || 'indigo'}-200`,
+        headOfDepartment: majorData.headOfDepartment || 'Belum Ditugaskan',
+        description: majorData.description || '',
+        skills: majorData.skills || [],
+        careerProspects: majorData.careerProspects || [],
+        createdAt: new Date().toLocaleDateString('id-ID'),
+      };
+      setMajors((prev) => [fallback, ...prev]);
+    }
+  };
+
+  const handleUpdateMajor = async (majorId: string, updates: Partial<MajorItem>) => {
+    try {
+      const updated = await api.updateMajor(majorId, updates);
+      setMajors((prev) => prev.map((m) => (m.id === majorId ? { ...m, ...updated } : m)));
+    } catch (err) {
+      console.error(err);
+      setMajors((prev) => prev.map((m) => (m.id === majorId ? { ...m, ...updates } : m)));
+    }
+  };
+
+  const handleDeleteMajor = async (majorId: string) => {
+    try {
+      await api.deleteMajor(majorId);
+    } catch (err) {
+      console.error(err);
+    }
+    setMajors((prev) => prev.filter((m) => m.id !== majorId));
   };
 
   // --- Handlers: Ulangan Online (Guru & Siswa) ---
@@ -749,6 +798,7 @@ export default function App() {
           usersRoster={usersRoster}
           exams={exams}
           announcements={announcements}
+          majors={majors}
           dbStatus={dbStatus}
           onOpenLogin={(role) => {
             if (role) setLoginModalInitialRole(role);
@@ -813,6 +863,7 @@ export default function App() {
           activeExamsCount={activeExamsCount}
           pendingTasksCount={pendingTasksCount}
           classesCount={classes.length}
+          majorsCount={majors.length}
           subjectsCount={subjects.length}
           studentsCount={registeredStudentsCount}
           teachersCount={registeredTeachersCount}
@@ -972,6 +1023,7 @@ export default function App() {
           )}
 
           {(activeTab === 'admin_panel' ||
+            activeTab === 'admin_majors' ||
             activeTab === 'admin_subjects' ||
             activeTab === 'admin_students' ||
             activeTab === 'admin_teachers' ||
@@ -982,9 +1034,12 @@ export default function App() {
               classes={classes}
               users={usersRoster}
               subjects={subjects}
+              majors={majors}
               dbStatus={dbStatus}
               initialSubTab={
-                activeTab === 'admin_subjects'
+                activeTab === 'admin_majors'
+                  ? 'majors'
+                  : activeTab === 'admin_subjects'
                   ? 'subjects'
                   : activeTab === 'admin_students'
                   ? 'students'
@@ -999,7 +1054,8 @@ export default function App() {
                   : 'register'
               }
               onSubTabChange={(subTab) => {
-                if (subTab === 'subjects') setActiveTab('admin_subjects');
+                if (subTab === 'majors') setActiveTab('admin_majors');
+                else if (subTab === 'subjects') setActiveTab('admin_subjects');
                 else if (subTab === 'students') setActiveTab('admin_students');
                 else if (subTab === 'teachers') setActiveTab('admin_teachers');
                 else if (subTab === 'kepsek') setActiveTab('admin_kepsek');
@@ -1015,6 +1071,9 @@ export default function App() {
               onCreateSubject={handleCreateSubject}
               onUpdateSubject={handleUpdateSubject}
               onDeleteSubject={handleDeleteSubject}
+              onCreateMajor={handleCreateMajor}
+              onUpdateMajor={handleUpdateMajor}
+              onDeleteMajor={handleDeleteMajor}
             />
           )}
         </main>

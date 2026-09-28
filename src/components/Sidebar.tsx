@@ -35,6 +35,7 @@ interface SidebarProps {
   activeExamsCount?: number;
   pendingTasksCount?: number;
   classesCount?: number;
+  majorsCount?: number;
   subjectsCount?: number;
   studentsCount?: number;
   teachersCount?: number;
@@ -51,6 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeExamsCount = 1,
   pendingTasksCount = 2,
   classesCount = 5,
+  majorsCount = 6,
   subjectsCount = 10,
   studentsCount = 10,
   teachersCount = 6,
@@ -69,6 +71,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: Server,
           badge: 'Admin IT',
           badgeColor: 'bg-purple-600 text-white',
+        },
+        {
+          id: 'admin_majors' as TabType,
+          label: 'Manajemen Jurusan',
+          icon: Award,
+          badge: `${majorsCount} Jurusan`,
+          badgeColor: 'bg-emerald-600 text-white',
         },
         {
           id: 'admin_subjects' as TabType,

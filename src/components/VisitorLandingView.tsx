@@ -31,8 +31,8 @@ import {
   Briefcase,
   Search
 } from 'lucide-react';
-import { ClassRoom, User, OnlineExam, Announcement, UserRole } from '../types';
-import { OFFICIAL_MAJORS, MajorDefinition, USERS } from '../data/schoolData';
+import { ClassRoom, User, OnlineExam, Announcement, UserRole, MajorItem } from '../types';
+import { OFFICIAL_MAJORS, INITIAL_MAJORS, MajorDefinition, USERS } from '../data/schoolData';
 import { DbServerStatus } from '../services/api';
 
 interface VisitorLandingViewProps {
@@ -40,6 +40,7 @@ interface VisitorLandingViewProps {
   usersRoster: User[];
   exams: OnlineExam[];
   announcements: Announcement[];
+  majors?: MajorItem[];
   dbStatus: DbServerStatus | null;
   onOpenLogin: (role?: UserRole) => void;
 }
@@ -49,11 +50,14 @@ export const VisitorLandingView: React.FC<VisitorLandingViewProps> = ({
   usersRoster,
   exams,
   announcements,
+  majors,
   dbStatus,
   onOpenLogin,
 }) => {
   const [selectedMajorFilter, setSelectedMajorFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const activeMajorsList: MajorItem[] = majors && majors.length > 0 ? majors : INITIAL_MAJORS;
 
   // Dynamic calculations
   const totalStudents = usersRoster.filter((u) => u.role === 'student').length;
@@ -278,7 +282,7 @@ export const VisitorLandingView: React.FC<VisitorLandingViewProps> = ({
     },
   ];
 
-  const filteredMajors = OFFICIAL_MAJORS.filter((m) => {
+  const filteredMajors = activeMajorsList.filter((m) => {
     if (selectedMajorFilter !== 'ALL' && m.code !== selectedMajorFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -462,7 +466,7 @@ export const VisitorLandingView: React.FC<VisitorLandingViewProps> = ({
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-extrabold mb-2">
                 <Award className="w-3.5 h-3.5" />
-                6 Program Keahlian Unggulan
+                {activeMajorsList.length} Program Keahlian Unggulan
               </div>
               <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
                 Eksplorasi Jurusan & Kompetensi Siswa
@@ -490,8 +494,8 @@ export const VisitorLandingView: React.FC<VisitorLandingViewProps> = ({
                 onChange={(e) => setSelectedMajorFilter(e.target.value)}
                 className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="ALL">Semua Jurusan (6)</option>
-                {OFFICIAL_MAJORS.map((m) => (
+                <option value="ALL">Semua Jurusan ({activeMajorsList.length})</option>
+                {activeMajorsList.map((m) => (
                   <option key={m.code} value={m.code}>
                     {m.code} - {m.name}
                   </option>
@@ -500,18 +504,56 @@ export const VisitorLandingView: React.FC<VisitorLandingViewProps> = ({
             </div>
           </div>
 
-          {/* Grid of 6 Majors */}
+          {/* Grid of Majors */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredMajors.map((major) => {
-              const meta = majorDetailsMap[major.code] || majorDetailsMap.PPLG;
-              const Icon = meta.icon;
-              
               // Calculate classes and students for this major
-              const majorClasses = classes.filter((c) => c.majorCode === major.code);
-              const majorTotalStudents = majorClasses.reduce(
-                (sum, c) => sum + (c.totalStudents || 36),
-                0
+              const majorClasses = classes.filter(
+                (c) =>
+                  (c.majorCode && c.majorCode.toUpperCase() === major.code.toUpperCase()) ||
+                  (c.majorName && c.majorName.toLowerCase() === major.name.toLowerCase())
               );
+
+              // Calculate real active students registered in this major
+              const studentsInMajor = usersRoster.filter((u) => {
+                if (u.role !== 'student') return false;
+                const matchCode = u.majorCode && u.majorCode.toUpperCase() === major.code.toUpperCase();
+                const matchName =
+                  (u.jurusan && u.jurusan.toLowerCase() === major.name.toLowerCase()) ||
+                  (u.majorName && u.majorName.toLowerCase() === major.name.toLowerCase());
+                const matchClass = classes.some(
+                  (c) => c.name === u.class && c.majorCode?.toUpperCase() === major.code.toUpperCase()
+                );
+                return matchCode || matchName || matchClass;
+              });
+              const majorTotalStudents = studentsInMajor.length;
+
+              const colorKey = major.color || 'indigo';
+              const fallbackTheme = {
+                bg: `bg-${colorKey}-50/70`,
+                border: `border-${colorKey}-200`,
+                text: `text-${colorKey}-900`,
+                badge: `bg-${colorKey}-100 text-${colorKey}-800 border-${colorKey}-200`,
+                accent: `from-${colorKey}-600 to-${colorKey}-800`,
+              };
+
+              const meta = majorDetailsMap[major.code] || {
+                icon: Award,
+                description:
+                  major.description ||
+                  'Program keahlian terintegrasi dengan standar kompetensi industri dan kurikulum mutakhir.',
+                skills:
+                  major.skills && major.skills.length > 0
+                    ? major.skills
+                    : ['Kompetensi Keahlian', 'Praktik Industri', 'Sertifikasi Profesi'],
+                careerProspects:
+                  major.careerProspects && major.careerProspects.length > 0
+                    ? major.careerProspects
+                    : ['Spesialis Industri', 'Wirausaha Mandiri', 'Tenaga Profesional'],
+                tools: [],
+                colorTheme: fallbackTheme,
+              };
+              const Icon = meta.icon;
 
               return (
                 <div

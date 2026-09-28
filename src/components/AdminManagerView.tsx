@@ -35,17 +35,29 @@ import {
   Save,
   AlertCircle
 } from 'lucide-react';
-import { User, ClassRoom, UserRole, SubjectItem } from '../types';
+import { User, ClassRoom, UserRole, SubjectItem, MajorItem } from '../types';
 import { DbServerStatus } from '../services/api';
-import { OFFICIAL_MAJORS, INITIAL_SUBJECTS } from '../data/schoolData';
+import { OFFICIAL_MAJORS, INITIAL_SUBJECTS, INITIAL_MAJORS } from '../data/schoolData';
 import { AdminSubjectsTab } from './AdminSubjectsTab';
+import { AdminMajorsTab } from './AdminMajorsTab';
 
-export type AdminSubTab = 'register' | 'classes' | 'subjects' | 'students' | 'teachers' | 'kepsek' | 'kurikulum' | 'admins' | 'server';
+export type AdminSubTab =
+  | 'register'
+  | 'classes'
+  | 'majors'
+  | 'subjects'
+  | 'students'
+  | 'teachers'
+  | 'kepsek'
+  | 'kurikulum'
+  | 'admins'
+  | 'server';
 
 interface AdminManagerViewProps {
   classes: ClassRoom[];
   users: User[];
   subjects?: SubjectItem[];
+  majors?: MajorItem[];
   dbStatus: DbServerStatus | null;
   initialSubTab?: AdminSubTab;
   onSubTabChange?: (tab: AdminSubTab) => void;
@@ -64,12 +76,16 @@ interface AdminManagerViewProps {
   onCreateSubject?: (subjectData: Partial<SubjectItem>) => Promise<void>;
   onUpdateSubject?: (subjectId: string, updates: Partial<SubjectItem>) => Promise<void>;
   onDeleteSubject?: (subjectId: string) => Promise<void>;
+  onCreateMajor?: (majorData: Partial<MajorItem>) => Promise<void>;
+  onUpdateMajor?: (majorId: string, updates: Partial<MajorItem>) => Promise<void>;
+  onDeleteMajor?: (majorId: string) => Promise<void>;
 }
 
 export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   classes,
   users,
   subjects,
+  majors,
   dbStatus,
   initialSubTab = 'register',
   onSubTabChange,
@@ -81,6 +97,9 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   onCreateSubject,
   onUpdateSubject,
   onDeleteSubject,
+  onCreateMajor,
+  onUpdateMajor,
+  onDeleteMajor,
 }) => {
   const [activeAdminTab, setActiveAdminTab] = useState<AdminSubTab>(initialSubTab);
   const [searchQuery, setSearchQuery] = useState('');
@@ -122,6 +141,9 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
     }
   };
 
+  // List of Majors (Managed dynamically with fallback to INITIAL_MAJORS)
+  const majorsList = majors && majors.length > 0 ? majors : INITIAL_MAJORS;
+
   // Form State: Registrasi User Baru
   const [regRole, setRegRole] = useState<UserRole>('student');
   const [regName, setRegName] = useState('');
@@ -130,6 +152,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [regNisn, setRegNisn] = useState('');
   const [regNip, setRegNip] = useState('');
+  const [regMajorCode, setRegMajorCode] = useState(majorsList[0]?.code || 'PPLG');
   const [regClass, setRegClass] = useState(classes[0]?.name || '12 PPLG 2');
   const [regSubject, setRegSubject] = useState('Pemrograman Web (PWPB)');
   const [regGender, setRegGender] = useState('Laki-laki');
@@ -146,6 +169,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   const [editRole, setEditRole] = useState<UserRole>('student');
   const [editNisn, setEditNisn] = useState('');
   const [editNip, setEditNip] = useState('');
+  const [editMajorCode, setEditMajorCode] = useState('PPLG');
   const [editClass, setEditClass] = useState('');
   const [editSubjectTaught, setEditSubjectTaught] = useState('');
   const [editTitleRole, setEditTitleRole] = useState('');
@@ -164,6 +188,16 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
     setEditRole(u.role);
     setEditNisn(u.nisn || '');
     setEditNip(u.nip || '');
+    const userMajorCode =
+      u.majorCode ||
+      majorsList.find(
+        (m) =>
+          m.name.toLowerCase() === (u.jurusan || '').toLowerCase() ||
+          m.name.toLowerCase() === (u.majorName || '').toLowerCase()
+      )?.code ||
+      classes.find((c) => c.name === u.class)?.majorCode ||
+      'PPLG';
+    setEditMajorCode(userMajorCode);
     setEditClass(u.class || (classes[0]?.name || '12 PPLG 2'));
     setEditSubjectTaught(u.subjectTaught || 'Pemrograman Web (PWPB)');
     setEditTitleRole(u.titleRole || '');
@@ -183,6 +217,9 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
     setEditErrorMsg('');
 
     try {
+      const selectedEditMajor =
+        majorsList.find((m) => m.code.toUpperCase() === editMajorCode.toUpperCase()) || majorsList[0];
+
       await onUpdateUser(editingUser.id, {
         name: editName,
         email: editEmail,
@@ -191,6 +228,9 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
         nisn: editRole === 'student' ? editNisn : '-',
         nip: editRole !== 'student' ? editNip : '-',
         class: editRole === 'student' ? editClass : `Staf ${editRole}`,
+        majorCode: editRole === 'student' ? selectedEditMajor?.code : undefined,
+        majorName: editRole === 'student' ? selectedEditMajor?.name : undefined,
+        jurusan: editRole === 'student' ? selectedEditMajor?.name : undefined,
         subjectTaught: editRole === 'teacher' ? editSubjectTaught : undefined,
         titleRole: editTitleRole || undefined,
         gender: editGender,
@@ -221,10 +261,10 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   const [isSubmittingClass, setIsSubmittingClass] = useState(false);
   const [classSuccessMsg, setClassSuccessMsg] = useState('');
 
-  // Auto set major name based on official 6 majors
+  // Auto set major name based on official and custom majors
   const handleMajorChange = (code: string) => {
     setMajorCode(code);
-    const found = OFFICIAL_MAJORS.find((m) => m.code === code);
+    const found = majorsList.find((m) => m.code === code) || OFFICIAL_MAJORS.find((m) => m.code === code);
     if (found) {
       setMajorName(found.name);
     }
@@ -237,6 +277,9 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
     setUserSuccessMsg('');
 
     try {
+      const selectedMajor =
+        majorsList.find((m) => m.code.toUpperCase() === regMajorCode.toUpperCase()) || majorsList[0];
+
       await onCreateUser({
         name: regName,
         email: regEmail,
@@ -245,6 +288,9 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
         nisn: regRole === 'student' ? regNisn : '-',
         nip: regRole !== 'student' ? regNip : '-',
         class: regRole === 'student' ? regClass : `Staf ${regRole}`,
+        majorCode: regRole === 'student' ? selectedMajor?.code : undefined,
+        majorName: regRole === 'student' ? selectedMajor?.name : undefined,
+        jurusan: regRole === 'student' ? selectedMajor?.name : undefined,
         subjectTaught: regRole === 'teacher' ? regSubject : undefined,
         gender: regGender,
         phoneNumber: regPhone,
@@ -406,6 +452,18 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
         </button>
 
         <button
+          onClick={() => handleTabSelect('majors')}
+          className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 ${
+            activeAdminTab === 'majors'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <Award className="w-4 h-4" />
+          3. Manajemen Jurusan ({majorsList.length})
+        </button>
+
+        <button
           onClick={() => handleTabSelect('subjects')}
           className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center gap-2 ${
             activeAdminTab === 'subjects'
@@ -414,7 +472,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
           }`}
         >
           <BookOpen className="w-4 h-4" />
-          3. Mata Pelajaran ({subjectsList.length})
+          4. Mata Pelajaran ({subjectsList.length})
         </button>
 
         <button
@@ -426,7 +484,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
           }`}
         >
           <GraduationCap className="w-4 h-4" />
-          4. Akun Siswa ({registeredStudents.length})
+          5. Akun Siswa ({registeredStudents.length})
         </button>
 
         <button
@@ -438,7 +496,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
           }`}
         >
           <Users className="w-4 h-4" />
-          5. Akun Guru ({registeredTeachers.length})
+          6. Akun Guru ({registeredTeachers.length})
         </button>
 
         <button
@@ -450,7 +508,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
           }`}
         >
           <Award className="w-4 h-4" />
-          6. Akun Kepsek ({registeredKepsek.length})
+          7. Akun Kepsek ({registeredKepsek.length})
         </button>
 
         <button
@@ -462,7 +520,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
           }`}
         >
           <Layers className="w-4 h-4" />
-          7. Akun Kurikulum ({registeredKurikulum.length})
+          8. Akun Kurikulum ({registeredKurikulum.length})
         </button>
 
         <button
@@ -474,7 +532,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
           }`}
         >
           <ShieldCheck className="w-4 h-4" />
-          8. Akun Admin IT ({registeredAdmins.length})
+          9. Akun Admin IT ({registeredAdmins.length})
         </button>
 
         <button
@@ -486,7 +544,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
           }`}
         >
           <Database className="w-4 h-4" />
-          9. Status Server & DB
+          10. Status Server & DB
         </button>
       </div>
 
@@ -590,6 +648,36 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                     placeholder="Contoh: 198405122009021004"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500"
                   />
+                </div>
+              )}
+
+              {/* Conditional: Major Selection for Student */}
+              {regRole === 'student' && (
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1 flex items-center justify-between">
+                    <span>Program Keahlian / Jurusan Siswa *</span>
+                    <span className="text-[10px] text-emerald-600 font-semibold">Tersinkron Master Jurusan</span>
+                  </label>
+                  <select
+                    value={regMajorCode}
+                    onChange={(e) => {
+                      const selectedCode = e.target.value;
+                      setRegMajorCode(selectedCode);
+                      const matchingClass = classes.find(
+                        (c) => c.majorCode?.toUpperCase() === selectedCode.toUpperCase()
+                      );
+                      if (matchingClass) {
+                        setRegClass(matchingClass.name);
+                      }
+                    }}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {majorsList.map((m) => (
+                      <option key={m.id} value={m.code}>
+                        {m.code} - {m.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
 
@@ -900,7 +988,21 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: MANAJEMEN MATA PELAJARAN (ADMIN MASTER MAPEL)                    */}
+      {/* TAB 3: MANAJEMEN JURUSAN (ADMIN MASTER MAJORS)                          */}
+      {/* ========================================================================= */}
+      {activeAdminTab === 'majors' && (
+        <AdminMajorsTab
+          majors={majorsList}
+          users={users}
+          classes={classes}
+          onCreateMajor={onCreateMajor}
+          onUpdateMajor={onUpdateMajor}
+          onDeleteMajor={onDeleteMajor}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 4: MANAJEMEN MATA PELAJARAN (ADMIN MASTER MAPEL)                    */}
       {/* ========================================================================= */}
       {activeAdminTab === 'subjects' && (
         <AdminSubjectsTab
@@ -1013,9 +1115,16 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                           </div>
                         </div>
                       </div>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0">
-                        {std.class}
-                      </span>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                          {std.class}
+                        </span>
+                        {(std.majorCode || std.jurusan) && (
+                          <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            {std.majorCode || std.jurusan}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-1.5 pt-2 border-t border-slate-100 text-[11px] text-slate-600">
@@ -1076,6 +1185,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                     <tr>
                       <th className="py-3.5 px-4">Nama Siswa</th>
                       <th className="py-3.5 px-4">NISN</th>
+                      <th className="py-3.5 px-4">Jurusan</th>
                       <th className="py-3.5 px-4">Kelas</th>
                       <th className="py-3.5 px-4">Email Sekolah</th>
                       <th className="py-3.5 px-4">No. HP / WA</th>
@@ -1092,6 +1202,11 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                           <span className="line-clamp-1">{std.name}</span>
                         </td>
                         <td className="py-3 px-4 font-mono font-bold text-indigo-600">{std.nisn}</td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            {std.majorCode || std.jurusan || '-'}
+                          </span>
+                        </td>
                         <td className="py-3 px-4 font-bold">{std.class}</td>
                         <td className="py-3 px-4 text-slate-500">{std.email}</td>
                         <td className="py-3 px-4 text-slate-500">{std.phoneNumber || '-'}</td>
@@ -1816,6 +1931,19 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                   </div>
                 </div>
               )}
+
+              {selectedUserForBio.role === 'student' && (selectedUserForBio.majorName || selectedUserForBio.majorCode || selectedUserForBio.jurusan) && (
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 col-span-2">
+                  <span className="text-[10px] text-emerald-700 uppercase font-bold">Program Keahlian & Jurusan</span>
+                  <div className="font-extrabold text-emerald-950 mt-0.5 flex items-center gap-2">
+                    <Award className="w-4 h-4 text-emerald-600" />
+                    <span>
+                      {selectedUserForBio.majorCode ? `[${selectedUserForBio.majorCode}] ` : ''}
+                      {selectedUserForBio.majorName || selectedUserForBio.jurusan}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="pt-2 flex items-center justify-between">
@@ -1987,6 +2115,33 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
 
                 {editRole === 'student' && (
                   <>
+                    <div className="sm:col-span-2">
+                      <label className="block font-bold text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Program Keahlian / Jurusan *</span>
+                        <span className="text-[10px] text-emerald-600 font-semibold">Tersinkron Master Jurusan</span>
+                      </label>
+                      <select
+                        value={editMajorCode}
+                        onChange={(e) => {
+                          const codeVal = e.target.value;
+                          setEditMajorCode(codeVal);
+                          const matchingClass = classes.find(
+                            (c) => c.majorCode?.toUpperCase() === codeVal.toUpperCase()
+                          );
+                          if (matchingClass) {
+                            setEditClass(matchingClass.name);
+                          }
+                        }}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 font-bold"
+                      >
+                        {majorsList.map((m) => (
+                          <option key={m.id} value={m.code}>
+                            {m.code} - {m.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div className="sm:col-span-2">
                       <label className="block font-bold text-slate-700 mb-1">
                         Penempatan Rombel Kelas *

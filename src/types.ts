@@ -16,11 +16,28 @@ export type TabType =
   | 'executive_analytics'
   | 'admin_panel'
   | 'admin_subjects'
+  | 'admin_majors'
   | 'admin_students'
   | 'admin_teachers'
   | 'admin_kepsek'
   | 'admin_kurikulum'
   | 'admin_admins';
+
+export interface MajorItem {
+  id: string;
+  code: string; // e.g. "PPLG", "TJKT", "DKV", "PM", "PH", "MPLB"
+  name: string; // e.g. "Pengembangan Perangkat Lunak & Gim"
+  category: string; // e.g. "Teknologi Informasi & Software"
+  color?: string; // e.g. "indigo", "blue", "purple", "amber", "rose", "emerald"
+  badgeClass?: string;
+  description?: string;
+  skills?: string[];
+  careerProspects?: string[];
+  headOfDepartment?: string; // Kaprog / Kepala Program Keahlian
+  createdAt?: string;
+}
+
+export type Major = MajorItem;
 
 export interface SubjectItem {
   id: string;
@@ -67,6 +84,9 @@ export interface User {
   titleRole?: string;
   gender?: 'Laki-laki' | 'Perempuan' | string;
   phoneNumber?: string;
+  majorCode?: string; // e.g. "PPLG", "TJKT", etc.
+  majorName?: string; // e.g. "Pengembangan Perangkat Lunak & Gim"
+  jurusan?: string; // e.g. "Pengembangan Perangkat Lunak & Gim"
   subject?: string;
   subjectTaught?: string; // Untuk guru: mapel yang diampu
   status?: 'Aktif' | 'Nonaktif';

@@ -15,6 +15,7 @@ import {
   AttendanceModel,
   AnnouncementModel,
   SubjectModel,
+  MajorModel,
   inMemoryStore,
 } from './server/db';
 import { EXECUTIVE_DATA } from './src/data/schoolData';
@@ -149,6 +150,9 @@ async function startServer() {
         streakDays: 1,
         gender: userData.gender || 'Laki-laki',
         phoneNumber: userData.phoneNumber || '-',
+        majorCode: userData.majorCode || '',
+        majorName: userData.majorName || '',
+        jurusan: userData.jurusan || userData.majorName || '',
         subjectTaught: userData.subjectTaught || '-',
         password: userData.password || 'password123',
         status: 'Aktif',
@@ -324,6 +328,119 @@ async function startServer() {
         (inMemoryStore as any).subjects = ((inMemoryStore as any).subjects || []).filter((s: any) => s.id !== id);
       }
       return res.json({ success: true, message: 'Mata pelajaran berhasil dihapus' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // --- 0.2 MANAJEMEN JURUSAN / PROGRAM KEAHLIAN (ADMIN MASTER MAJORS) ---
+
+  // Get all majors
+  app.get('/api/majors', async (req, res) => {
+    try {
+      const { isMongoConnected } = getDbStatus();
+      if (isMongoConnected) {
+        let majors = await MajorModel.find().lean();
+        if (!majors || majors.length === 0) {
+          const { INITIAL_MAJORS } = await import('./src/data/schoolData');
+          await MajorModel.insertMany(INITIAL_MAJORS);
+          majors = await MajorModel.find().lean();
+        }
+        return res.json(majors);
+      }
+      return res.json((inMemoryStore as any).majors || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Create new major (Admin only)
+  app.post('/api/majors', async (req, res) => {
+    try {
+      const { code, name, category, color, headOfDepartment, description, skills, careerProspects, badgeClass } = req.body;
+      const cleanCode = (code || 'JURUSAN').trim().toUpperCase();
+      const cleanName = (name || '').trim();
+
+      if (!cleanName) {
+        return res.status(400).json({ error: 'Nama jurusan / program keahlian wajib diisi' });
+      }
+
+      const cleanColor = color || 'indigo';
+      const newMajor = {
+        id: `mjr-${cleanCode.toLowerCase()}-${Date.now().toString().slice(-4)}`,
+        code: cleanCode,
+        name: cleanName,
+        category: category || 'Teknologi Informasi & Software',
+        color: cleanColor,
+        badgeClass: badgeClass || `bg-${cleanColor}-100 text-${cleanColor}-800 border-${cleanColor}-200`,
+        headOfDepartment: headOfDepartment || 'Belum Ditugaskan',
+        description: description || '',
+        skills: Array.isArray(skills) ? skills : (skills ? String(skills).split(',').map((s: string) => s.trim()) : []),
+        careerProspects: Array.isArray(careerProspects) ? careerProspects : (careerProspects ? String(careerProspects).split(',').map((c: string) => c.trim()) : []),
+        createdAt: new Date().toLocaleDateString('id-ID'),
+      };
+
+      const { isMongoConnected } = getDbStatus();
+      if (isMongoConnected) {
+        const created = await MajorModel.create(newMajor);
+        return res.status(201).json(created);
+      }
+
+      if (!(inMemoryStore as any).majors) {
+        (inMemoryStore as any).majors = [];
+      }
+      (inMemoryStore as any).majors.unshift(newMajor);
+      return res.status(201).json(newMajor);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Update major (Admin)
+  app.put('/api/majors/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      if (updates.code) updates.code = updates.code.trim().toUpperCase();
+      if (updates.color && !updates.badgeClass) {
+        updates.badgeClass = `bg-${updates.color}-100 text-${updates.color}-800 border-${updates.color}-200`;
+      }
+
+      const { isMongoConnected } = getDbStatus();
+      if (isMongoConnected) {
+        const updated = await MajorModel.findOneAndUpdate({ id }, { $set: updates }, { new: true }).lean();
+        if (!updated) {
+          return res.status(404).json({ error: 'Jurusan tidak ditemukan' });
+        }
+        return res.json(updated);
+      }
+
+      const majors = (inMemoryStore as any).majors || [];
+      const index = majors.findIndex((m: any) => m.id === id);
+      if (index === -1) {
+        return res.status(404).json({ error: 'Jurusan tidak ditemukan' });
+      }
+
+      const existing = majors[index];
+      const merged = { ...existing, ...updates };
+      majors[index] = merged;
+      return res.json(merged);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Delete major (Admin)
+  app.delete('/api/majors/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isMongoConnected } = getDbStatus();
+      if (isMongoConnected) {
+        await MajorModel.deleteOne({ id });
+      } else {
+        (inMemoryStore as any).majors = ((inMemoryStore as any).majors || []).filter((m: any) => m.id !== id);
+      }
+      return res.json({ success: true, message: 'Jurusan berhasil dihapus' });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
