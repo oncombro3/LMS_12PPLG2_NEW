@@ -110,6 +110,27 @@ async function startServer() {
     }
   });
 
+  // Update class (e.g. homeroomTeacher / walas)
+  app.put('/api/classes/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const { isMongoConnected } = getDbStatus();
+      if (isMongoConnected) {
+        const updated = await ClassRoomModel.findOneAndUpdate({ id }, updates, { new: true });
+        return res.json(updated);
+      }
+      const cls = (inMemoryStore.classes as any[]).find((c: any) => c.id === id);
+      if (cls) {
+        Object.assign(cls, updates);
+        return res.json(cls);
+      }
+      return res.status(404).json({ error: 'Class not found' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Get all users (filtered by role or class)
   app.get('/api/users', async (req, res) => {
     try {

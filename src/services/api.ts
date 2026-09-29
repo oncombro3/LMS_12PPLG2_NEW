@@ -67,6 +67,16 @@ export const api = {
     return await res.json();
   },
 
+  async updateClass(classId: string, updates: Partial<ClassRoom>): Promise<ClassRoom> {
+    const res = await fetch(`/api/classes/${classId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error('Failed to update class');
+    return await res.json();
+  },
+
   async getUsers(params?: { role?: string; class?: string }): Promise<User[]> {
     const query = new URLSearchParams();
     if (params?.role) query.append('role', params.role);

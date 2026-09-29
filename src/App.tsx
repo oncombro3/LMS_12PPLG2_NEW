@@ -175,6 +175,16 @@ export default function App() {
     setClasses((prev) => prev.filter((c) => c.id !== classId));
   };
 
+  const handleUpdateClass = async (classId: string, updates: Partial<ClassRoom>) => {
+    try {
+      const updated = await api.updateClass(classId, updates);
+      setClasses((prev) => prev.map((c) => (c.id === classId ? { ...c, ...updated } : c)));
+    } catch (err) {
+      console.error('Failed to update class:', err);
+      setClasses((prev) => prev.map((c) => (c.id === classId ? { ...c, ...updates } : c)));
+    }
+  };
+
   const handleCreateUser = async (userData: Partial<User>) => {
     try {
       const created = await api.createUser(userData);
@@ -1073,6 +1083,7 @@ export default function App() {
               }}
               onRefreshDbStatus={refreshDbStatus}
               onCreateClass={handleCreateClass}
+              onUpdateClass={handleUpdateClass}
               onDeleteClass={handleDeleteClass}
               onCreateUser={handleCreateUser}
               onUpdateUser={handleUpdateUser}

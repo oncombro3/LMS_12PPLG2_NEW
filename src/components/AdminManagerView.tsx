@@ -71,6 +71,7 @@ interface AdminManagerViewProps {
     isPlus?: boolean;
     homeroomTeacher?: string;
   }) => Promise<void>;
+  onUpdateClass?: (classId: string, updates: Partial<ClassRoom>) => Promise<void>;
   onDeleteClass?: (classId: string) => Promise<void>;
   onCreateUser: (userData: Partial<User>) => Promise<void>;
   onUpdateUser: (userId: string, updates: Partial<User>) => Promise<void>;
@@ -93,6 +94,7 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   onSubTabChange,
   onRefreshDbStatus,
   onCreateClass,
+  onUpdateClass,
   onDeleteClass,
   onCreateUser,
   onUpdateUser,
@@ -123,6 +125,70 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
   // Modal Detail Kelas & Daftar Siswa Masuk
   const [viewingClass, setViewingClass] = useState<ClassRoom | null>(null);
   const [viewingClassSearch, setViewingClassSearch] = useState('');
+
+  // Modal Ganti / Tentukan Wali Kelas
+  const [editingWalasClass, setEditingWalasClass] = useState<ClassRoom | null>(null);
+  const [selectedWalasTeacher, setSelectedWalasTeacher] = useState<string>('');
+  const [isSavingWalas, setIsSavingWalas] = useState<boolean>(false);
+
+  const handleSaveWalas = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWalasClass) return;
+    setIsSavingWalas(true);
+    const walasValue = selectedWalasTeacher.trim() || 'Belum Ditentukan';
+    try {
+      if (onUpdateClass) {
+        await onUpdateClass(editingWalasClass.id, { homeroomTeacher: walasValue });
+      }
+      if (viewingClass && viewingClass.id === editingWalasClass.id) {
+        setViewingClass({ ...viewingClass, homeroomTeacher: walasValue });
+      }
+      setEditingWalasClass(null);
+    } catch (err) {
+      console.error('Failed to update walas:', err);
+    } finally {
+      setIsSavingWalas(false);
+    }
+  };
+
+  // Modal Ubah Tahun Ajaran Kelas
+  const [editingYearClass, setEditingYearClass] = useState<ClassRoom | null>(null);
+  const [selectedYear, setSelectedYear] = useState<string>('2025/2026');
+  const [customYear, setCustomYear] = useState<string>('');
+  const [isSavingYear, setIsSavingYear] = useState<boolean>(false);
+
+  const handleOpenEditYear = (cls: ClassRoom) => {
+    setEditingYearClass(cls);
+    const curr = cls.academicYear || '2025/2026';
+    const presets = ['2023/2024', '2024/2025', '2025/2026', '2026/2027', '2027/2028'];
+    if (presets.includes(curr)) {
+      setSelectedYear(curr);
+      setCustomYear('');
+    } else {
+      setSelectedYear('custom');
+      setCustomYear(curr);
+    }
+  };
+
+  const handleSaveYear = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingYearClass) return;
+    setIsSavingYear(true);
+    const finalYear = (selectedYear === 'custom' ? customYear : selectedYear).trim() || '2025/2026';
+    try {
+      if (onUpdateClass) {
+        await onUpdateClass(editingYearClass.id, { academicYear: finalYear });
+      }
+      if (viewingClass && viewingClass.id === editingYearClass.id) {
+        setViewingClass({ ...viewingClass, academicYear: finalYear });
+      }
+      setEditingYearClass(null);
+    } catch (err) {
+      console.error('Failed to update academic year:', err);
+    } finally {
+      setIsSavingYear(false);
+    }
+  };
 
   // Helper: Dapatkan daftar siswa yang masuk pada suatu kelas
   const getStudentsInClass = (targetClass: ClassRoom) => {
@@ -1096,13 +1162,51 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                         <div className="text-[11px] text-slate-500 space-y-1 bg-white/70 p-2.5 rounded-xl border border-slate-200/60">
                           <div className="flex items-center justify-between">
                             <span className="text-slate-500">Tahun Ajaran:</span>
-                            <span className="font-bold text-slate-700">{cls.academicYear}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-slate-700">{cls.academicYear}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditYear(cls)}
+                                className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/60 transition cursor-pointer"
+                                title="Ubah Tahun Ajaran Rombel"
+                              >
+                                Ubah
+                              </button>
+                            </div>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-slate-500">Guru/Wali:</span>
-                            <span className="font-bold text-slate-700 truncate max-w-[140px]" title={cls.homeroomTeacher || 'Belum Ditentukan'}>
-                              {cls.homeroomTeacher || 'Belum Ditentukan'}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`font-bold truncate max-w-[100px] ${
+                                  cls.homeroomTeacher && cls.homeroomTeacher !== 'Belum Ditentukan'
+                                    ? 'text-slate-700'
+                                    : 'text-amber-600'
+                                }`}
+                                title={cls.homeroomTeacher || 'Belum Ditentukan'}
+                              >
+                                {cls.homeroomTeacher || 'Belum Ditentukan'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingWalasClass(cls);
+                                  setSelectedWalasTeacher(
+                                    cls.homeroomTeacher && cls.homeroomTeacher !== 'Belum Ditentukan'
+                                      ? cls.homeroomTeacher
+                                      : ''
+                                  );
+                                }}
+                                className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/60 transition cursor-pointer"
+                                title={
+                                  cls.homeroomTeacher && cls.homeroomTeacher !== 'Belum Ditentukan'
+                                    ? 'Ganti Wali Kelas'
+                                    : 'Tambah Wali Kelas'
+                                }
+                              >
+                                {cls.homeroomTeacher && cls.homeroomTeacher !== 'Belum Ditentukan' ? 'Ganti' : '+ Walas'}
+                              </button>
+                            </div>
                           </div>
                           <div className="flex items-center justify-between pt-1 border-t border-slate-100">
                             <span className="text-slate-500 flex items-center gap-1">
@@ -2568,17 +2672,95 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
                       {viewingClass.majorCode || viewingClass.majorName}
                     </span>
                   </div>
-                  <div className="p-2.5 bg-white rounded-xl border border-slate-200/70 shadow-2xs">
-                    <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Guru/Wali Kelas</span>
-                    <span className="font-extrabold text-slate-800 truncate block mt-0.5" title={viewingClass.homeroomTeacher || 'Belum Ditentukan'}>
-                      {viewingClass.homeroomTeacher || 'Belum Ditentukan'}
-                    </span>
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-200/70 shadow-2xs flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider truncate">
+                          Guru/Wali Kelas
+                        </span>
+                        {viewingClass.homeroomTeacher && viewingClass.homeroomTeacher !== 'Belum Ditentukan' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingWalasClass(viewingClass);
+                              setSelectedWalasTeacher(viewingClass.homeroomTeacher || '');
+                            }}
+                            className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5 cursor-pointer shrink-0"
+                            title="Ganti Wali Kelas"
+                          >
+                            <Edit3 className="w-2.5 h-2.5" /> Ganti
+                          </button>
+                        )}
+                      </div>
+                      <span
+                        className={`font-extrabold truncate block mt-0.5 text-xs ${
+                          viewingClass.homeroomTeacher && viewingClass.homeroomTeacher !== 'Belum Ditentukan'
+                            ? 'text-slate-800'
+                            : 'text-amber-600 text-[11px]'
+                        }`}
+                        title={viewingClass.homeroomTeacher || 'Belum Ditentukan'}
+                      >
+                        {viewingClass.homeroomTeacher || 'Belum Ditentukan'}
+                      </span>
+                    </div>
+
+                    {(!viewingClass.homeroomTeacher || viewingClass.homeroomTeacher === 'Belum Ditentukan') ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingWalasClass(viewingClass);
+                          setSelectedWalasTeacher('');
+                        }}
+                        className="mt-1.5 w-full py-1 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-lg border border-indigo-200 transition flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                        title="Tentukan Guru Wali Kelas untuk Rombel Ini"
+                      >
+                        <UserPlus className="w-3 h-3 text-indigo-600" />
+                        + Tambah Walas
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingWalasClass(viewingClass);
+                          setSelectedWalasTeacher(viewingClass.homeroomTeacher || '');
+                        }}
+                        className="mt-1.5 w-full py-1 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200 transition flex items-center justify-center gap-1 cursor-pointer"
+                        title="Ganti Wali Kelas untuk Rombel Ini"
+                      >
+                        <UserCheck className="w-3 h-3 text-indigo-600" />
+                        Ganti Walas
+                      </button>
+                    )}
                   </div>
-                  <div className="p-2.5 bg-white rounded-xl border border-slate-200/70 shadow-2xs">
-                    <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Tahun Ajaran</span>
-                    <span className="font-extrabold text-slate-800 block mt-0.5">
-                      {viewingClass.academicYear}
-                    </span>
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-200/70 shadow-2xs flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider truncate">
+                          Tahun Ajaran
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditYear(viewingClass)}
+                          className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5 cursor-pointer shrink-0"
+                          title="Ubah Tahun Ajaran"
+                        >
+                          <Edit3 className="w-2.5 h-2.5" /> Ubah
+                        </button>
+                      </div>
+                      <span className="font-extrabold text-slate-800 block mt-0.5 text-xs truncate">
+                        {viewingClass.academicYear || '2025/2026'}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditYear(viewingClass)}
+                      className="mt-1.5 w-full py-1 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-lg border border-indigo-200 transition flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                      title="Ubah Tahun Ajaran untuk Rombel Ini"
+                    >
+                      <Calendar className="w-3 h-3 text-indigo-600" />
+                      + Ubah Tahun Ajaran
+                    </button>
                   </div>
                   <div className="p-2.5 bg-indigo-50 border border-indigo-200/70 rounded-xl shadow-2xs">
                     <span className="text-[10px] font-bold text-indigo-600 block uppercase tracking-wider">Siswa Terdaftar</span>
@@ -2828,6 +3010,195 @@ export const AdminManagerView: React.FC<AdminManagerViewProps> = ({
         );
       })()}
 
+      {/* ========================================================================= */}
+      {/* MODAL: GANTI / TENTUKAN WALI KELAS (WALAS)                                */}
+      {/* ========================================================================= */}
+      {editingWalasClass && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-xs shrink-0">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">
+                    {editingWalasClass.homeroomTeacher && editingWalasClass.homeroomTeacher !== 'Belum Ditentukan'
+                      ? 'Ganti Wali Kelas'
+                      : 'Tentukan / Tambah Wali Kelas'}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Rombel {editingWalasClass.name} • {editingWalasClass.majorCode || editingWalasClass.majorName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingWalasClass(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveWalas} className="space-y-4">
+              <div>
+                <label className="block font-bold text-xs text-slate-700 mb-1.5">
+                  Pilih Guru Sebagai Wali Kelas / Pembimbing *
+                </label>
+                <select
+                  value={selectedWalasTeacher}
+                  onChange={(e) => setSelectedWalasTeacher(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:bg-white focus:ring-2 focus:ring-indigo-500 text-xs"
+                >
+                  <option value="">-- Pilih Guru Wali Kelas --</option>
+                  <option value="Belum Ditentukan">Kosongkan (Belum Ditentukan)</option>
+                  {registeredTeachers.map((teacher) => (
+                    <option key={teacher.id} value={teacher.name}>
+                      {teacher.name} — {teacher.subjectTaught || 'Guru'} (NIP: {teacher.nip || '-'})
+                    </option>
+                  ))}
+                </select>
+                {registeredTeachers.length === 0 ? (
+                  <p className="text-[11px] text-amber-600 font-medium mt-1.5">
+                    * Belum ada akun guru terdaftar. Anda dapat mendaftarkan guru terlebih dahulu di tab Registrasi Akun.
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-slate-500 font-medium mt-1.5">
+                    Saat ini: <strong className="text-slate-800">{editingWalasClass.homeroomTeacher || 'Belum Ditentukan'}</strong>
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2.5 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingWalasClass(null)}
+                  disabled={isSavingWalas}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingWalas}
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl transition shadow-md shadow-indigo-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingWalas ? (
+                    'Menyimpan...'
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      Simpan Wali Kelas
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: UBAH TAHUN AJARAN KELAS                                            */}
+      {/* ========================================================================= */}
+      {editingYearClass && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-xs shrink-0">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">
+                    Ubah Tahun Ajaran
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Rombel {editingYearClass.name} • {editingYearClass.majorCode || editingYearClass.majorName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingYearClass(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveYear} className="space-y-4">
+              <div>
+                <label className="block font-bold text-xs text-slate-700 mb-1.5">
+                  Pilih / Tentukan Tahun Ajaran Baru *
+                </label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:bg-white focus:ring-2 focus:ring-indigo-500 text-xs"
+                >
+                  <option value="2023/2024">2023/2024</option>
+                  <option value="2024/2025">2024/2025</option>
+                  <option value="2025/2026">2025/2026</option>
+                  <option value="2026/2027">2026/2027</option>
+                  <option value="2027/2028">2027/2028</option>
+                  <option value="2028/2029">2028/2029</option>
+                  <option value="custom">Ketik Sendiri (Format Kustom)...</option>
+                </select>
+
+                {selectedYear === 'custom' && (
+                  <div className="mt-2.5 space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-600">
+                      Masukkan Format Tahun Ajaran:
+                    </label>
+                    <input
+                      type="text"
+                      value={customYear}
+                      onChange={(e) => setCustomYear(e.target.value)}
+                      placeholder="Contoh: 2025/2026 Ganjil"
+                      className="w-full px-3.5 py-2.5 bg-white border border-indigo-300 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                )}
+
+                <div className="mt-3 p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] text-slate-600 flex items-center justify-between">
+                  <span>Tahun Ajaran Saat Ini:</span>
+                  <span className="font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                    {editingYearClass.academicYear || '2025/2026'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingYearClass(null)}
+                  disabled={isSavingYear}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingYear}
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl transition shadow-md shadow-indigo-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingYear ? (
+                    'Menyimpan...'
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      Simpan Tahun Ajaran
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
