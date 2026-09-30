@@ -155,6 +155,7 @@ export interface OnlineExam {
   questions: ExamQuestion[];
   results: ExamResult[];
   myResult?: ExamResult;
+  isScoreAnnounced?: boolean; // Apakah nilai sudah diumumkan oleh guru ke siswa
 }
 
 export type AssessmentType = 'Diagnostik' | 'Formatif' | 'Sumatif' | 'Projek Profil (P5)' | 'P5';
@@ -199,6 +200,7 @@ export interface DailyTask {
   dueDate: string;
   instructions: string;
   maxScore: number;
+  isScoreAnnounced?: boolean; // Apakah nilai sudah diumumkan oleh guru
   attachments?: { name: string; url: string; size: string }[];
   submissions: {
     studentId: string;

@@ -11,7 +11,9 @@ import {
   Play,
   Download,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { LearningMaterial, UserRole, Subject } from '../types';
 
@@ -20,6 +22,7 @@ interface MaterialsViewProps {
   userRole: UserRole;
   subjects?: Subject[];
   onCreateMaterial: (data: Partial<LearningMaterial>) => Promise<void>;
+  onDeleteMaterial?: (id: string) => Promise<void>;
   onOpenSandboxWithCode?: (code: string, language: string) => void;
 }
 
@@ -28,10 +31,32 @@ export const MaterialsView: React.FC<MaterialsViewProps> = ({
   userRole,
   subjects = [],
   onCreateMaterial,
+  onDeleteMaterial,
   onOpenSandboxWithCode,
 }) => {
   const [selectedMat, setSelectedMat] = useState<LearningMaterial | null>(materials[0] || null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [materialToDelete, setMaterialToDelete] = useState<LearningMaterial | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const canManage = userRole === 'teacher' || userRole === 'kurikulum' || userRole === 'admin';
+
+  const confirmDelete = async () => {
+    if (!materialToDelete || !onDeleteMaterial) return;
+    setIsDeleting(true);
+    try {
+      await onDeleteMaterial(materialToDelete.id);
+      if (selectedMat?.id === materialToDelete.id) {
+        const remaining = materials.filter((m) => m.id !== materialToDelete.id);
+        setSelectedMat(remaining[0] || null);
+      }
+      setMaterialToDelete(null);
+    } catch (err) {
+      console.error('Failed to delete material:', err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Create state
   const [newTitle, setNewTitle] = useState('');
@@ -110,9 +135,31 @@ export const MaterialsView: React.FC<MaterialsViewProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                    {mat.chapter}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                      {mat.chapter}
+                    </span>
+                    {canManage && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMaterialToDelete(mat);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.stopPropagation();
+                            setMaterialToDelete(mat);
+                          }
+                        }}
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                        title="Hapus Modul Materi"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                     <Clock className="w-3 h-3" /> {mat.readTime}
                   </span>
@@ -134,25 +181,39 @@ export const MaterialsView: React.FC<MaterialsViewProps> = ({
         <div className="lg:col-span-2">
           {selectedMat ? (
             <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
-              <div className="space-y-2 border-b border-slate-100 pb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">
-                    {selectedMat.subject}
-                  </span>
-                  <span className="text-xs text-slate-400 font-medium">
-                    {selectedMat.chapter}
-                  </span>
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="space-y-2 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">
+                      {selectedMat.subject}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">
+                      {selectedMat.chapter}
+                    </span>
+                  </div>
+                  <h2 className="text-lg sm:text-xl font-extrabold text-slate-900">
+                    {selectedMat.title}
+                  </h2>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                    <span>Pengampu: <strong>{selectedMat.teacher}</strong></span>
+                    <span>•</span>
+                    <span>Estimasi: <strong>{selectedMat.readTime}</strong></span>
+                    <span>•</span>
+                    <span>Dilihat: <strong>{selectedMat.viewsCount}x</strong></span>
+                  </div>
                 </div>
-                <h2 className="text-lg sm:text-xl font-extrabold text-slate-900">
-                  {selectedMat.title}
-                </h2>
-                <div className="flex items-center gap-3 text-xs text-slate-500">
-                  <span>Pengampu: <strong>{selectedMat.teacher}</strong></span>
-                  <span>•</span>
-                  <span>Estimasi: <strong>{selectedMat.readTime}</strong></span>
-                  <span>•</span>
-                  <span>Dilihat: <strong>{selectedMat.viewsCount}x</strong></span>
-                </div>
+
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => setMaterialToDelete(selectedMat)}
+                    className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border border-rose-200/80 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 shadow-2xs shrink-0 cursor-pointer"
+                    title="Hapus Materi Ini"
+                  >
+                    <Trash2 className="w-4 h-4 text-rose-600" />
+                    Hapus Materi
+                  </button>
+                )}
               </div>
 
               {/* Summary Callout */}
@@ -287,6 +348,64 @@ export const MaterialsView: React.FC<MaterialsViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Konfirmasi Hapus Materi */}
+      {materialToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full border border-slate-200 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-base">Hapus Modul Pembelajaran?</h3>
+                <p className="text-xs text-slate-500">Tindakan ini tidak dapat dibatalkan.</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-1.5 text-xs">
+              <div className="font-extrabold text-slate-800 line-clamp-2">
+                {materialToDelete.title}
+              </div>
+              <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                <span className="font-semibold text-indigo-600">{materialToDelete.subject}</span>
+                <span>•</span>
+                <span>{materialToDelete.chapter}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Materi pembelajaran ini akan dihapus secara permanen dari server dan tidak akan dapat diakses lagi oleh siswa di portal belajar.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setMaterialToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-extrabold text-xs shadow-md shadow-rose-200 transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  'Menghapus...'
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Ya, Hapus Materi
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

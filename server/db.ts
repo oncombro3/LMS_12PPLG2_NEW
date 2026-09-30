@@ -125,6 +125,7 @@ const ExamSchema = new Schema(
     questions: [ExamQuestionSchema],
     results: [ExamResultSchema],
     myResult: ExamResultSchema,
+    isScoreAnnounced: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
@@ -181,6 +182,7 @@ const TaskSchema = new Schema(
     dueDate: String,
     instructions: String,
     maxScore: { type: Number, default: 100 },
+    isScoreAnnounced: { type: Boolean, default: false },
     attachments: [
       {
         name: String,

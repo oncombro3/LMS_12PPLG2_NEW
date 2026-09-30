@@ -481,14 +481,56 @@ async function startServer() {
   });
 
   // --- 1. ULANGAN ONLINE / CBT API ---
+  const normalizeExamScores = (ex: any) => {
+    if (!ex || !ex.questions) return ex;
+    const mcQ = ex.questions.filter((q: any) => q.type === 'multiple_choice' || (q.options && q.options.length > 0 && q.type !== 'essay'));
+    if (mcQ.length === 0) return ex;
+    
+    if (Array.isArray(ex.results)) {
+      ex.results = ex.results.map((r: any) => {
+        if (!r.answers) return r;
+        let correct = 0;
+        mcQ.forEach((q: any) => {
+          const ans = r.answers[q.id];
+          if (ans !== undefined && Number(ans) === Number(q.correctIndex)) {
+            correct++;
+          }
+        });
+        const recalculatedScore = Math.round((correct / mcQ.length) * 100);
+        return {
+          ...r,
+          score: recalculatedScore,
+          isPassed: recalculatedScore >= (ex.passingScore || 75)
+        };
+      });
+    }
+
+    if (ex.myResult && ex.myResult.answers) {
+      let correct = 0;
+      mcQ.forEach((q: any) => {
+        const ans = ex.myResult.answers[q.id];
+        if (ans !== undefined && Number(ans) === Number(q.correctIndex)) {
+          correct++;
+        }
+      });
+      const recalculatedScore = Math.round((correct / mcQ.length) * 100);
+      ex.myResult = {
+        ...ex.myResult,
+        score: recalculatedScore,
+        isPassed: recalculatedScore >= (ex.passingScore || 75)
+      };
+    }
+    return ex;
+  };
+
   app.get('/api/exams', async (req, res) => {
     try {
       const { isMongoConnected } = getDbStatus();
       if (isMongoConnected) {
         const exams = await ExamModel.find().lean();
-        return res.json(exams);
+        return res.json(exams.map(normalizeExamScores));
       }
-      return res.json(inMemoryStore.exams);
+      return res.json(inMemoryStore.exams.map(normalizeExamScores));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -523,6 +565,7 @@ async function startServer() {
         },
         questions: examData.questions || [],
         results: [],
+        isScoreAnnounced: Boolean(examData.isScoreAnnounced) || false,
       };
 
       if (isMongoConnected) {
@@ -579,21 +622,24 @@ async function startServer() {
 
       if (!exam) return res.status(404).json({ error: 'Ujian tidak ditemukan' });
 
-      // Hitung skor otomatis
-      let earnedPoints = 0;
-      let totalPoints = 0;
+      // Hitung skor otomatis: HANYA soal Pilihan Ganda (PG) yang dihitung nilainya
+      const mcQuestions = (exam.questions || []).filter(
+        (q: any) => q.type === 'multiple_choice' || (q.options && q.options.length > 0 && q.type !== 'essay')
+      );
+      let correctMc = 0;
 
-      exam.questions.forEach((q: any) => {
-        const weight = q.scoreWeight || 20;
-        totalPoints += weight;
-        const studentAns = answers[q.id];
-        if (q.type === 'multiple_choice' && studentAns === q.correctIndex) {
-          earnedPoints += weight;
+      mcQuestions.forEach((q: any) => {
+        const studentAns = answers ? answers[q.id] : undefined;
+        if (studentAns !== undefined && Number(studentAns) === Number(q.correctIndex)) {
+          correctMc++;
         }
       });
 
-      const finalScore = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 100;
-      const isPassed = finalScore >= exam.passingScore;
+      // Jika seluruh PG benar (misal 9 dari 9 PG), nilai = 100
+      const finalScore = mcQuestions.length > 0
+        ? Math.round((correctMc / mcQuestions.length) * 100)
+        : 100;
+      const isPassed = finalScore >= (exam.passingScore || 75);
 
       const result = {
         studentId: studentId || 'std-1201',
@@ -938,7 +984,7 @@ async function startServer() {
       const { id } = req.params;
       const { isMongoConnected } = getDbStatus();
       if (isMongoConnected) {
-        await MaterialModel.deleteOne({ id });
+        await MaterialModel.deleteOne({ $or: [{ id }, { _id: id }] });
       } else {
         inMemoryStore.materials = (inMemoryStore.materials as any[]).filter((m: any) => m.id !== id);
       }

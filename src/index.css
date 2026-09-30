@@ -30,3 +30,99 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Print Styles for PDF & Hardcopy */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 10mm 15mm 10mm;
+  }
+
+  /* Sembunyikan elemen navigasi, sidebar, backdrop, dan kontrol UI */
+  nav,
+  aside,
+  header,
+  footer,
+  .no-print,
+  button,
+  select,
+  input,
+  .print-hide {
+    display: none !important;
+  }
+
+  .fixed {
+    position: static !important;
+  }
+
+  .bg-slate-900\/80,
+  .bg-slate-900\/60,
+  .bg-slate-900\/70,
+  .backdrop-blur-xs,
+  .backdrop-blur-sm {
+    background: transparent !important;
+    backdrop-filter: none !important;
+  }
+
+  .max-h-\[94vh\],
+  .max-h-\[92vh\],
+  .max-h-\[90vh\],
+  .overflow-y-auto {
+    max-height: none !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  body, html {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  main {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  #printable-official-recap,
+  #printable-student-transcript {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 5mm 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    display: block !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

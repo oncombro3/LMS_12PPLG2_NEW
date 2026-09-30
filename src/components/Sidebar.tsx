@@ -156,6 +156,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           badgeColor: 'bg-emerald-600 text-white',
         },
         {
+          id: 'student_history' as TabType,
+          label: 'Rekap Nilai Siswa',
+          icon: History,
+          badge: 'Excel & Rombel',
+          badgeColor: 'bg-emerald-600 text-white',
+        },
+        {
           id: 'announcements' as TabType,
           label: 'Pengumuman Sekolah',
           icon: Megaphone,
@@ -193,6 +200,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: FileCheck2,
           badge: 'PG & Esai',
           badgeColor: 'bg-rose-500 text-white',
+        },
+        {
+          id: 'student_history' as TabType,
+          label: 'Rekap Nilai Siswa',
+          icon: History,
+          badge: 'Excel & Rombel',
+          badgeColor: 'bg-emerald-600 text-white',
         },
         {
           id: 'tasks' as TabType,

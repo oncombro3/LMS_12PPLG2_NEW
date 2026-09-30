@@ -380,13 +380,16 @@ export default function App() {
       setExams((prev) =>
         prev.map((e) => {
           if (e.id === examId) {
+            const mcQuestions = (e.questions || []).filter(
+              (q) => q.type === 'multiple_choice' || (q.options && q.options.length > 0 && q.type !== 'essay')
+            );
             let correct = 0;
-            e.questions.forEach((q) => {
-              if (answers[q.id] !== undefined && Number(answers[q.id]) === q.correctIndex) {
+            mcQuestions.forEach((q) => {
+              if (answers[q.id] !== undefined && Number(answers[q.id]) === Number(q.correctIndex)) {
                 correct++;
               }
             });
-            const score = Math.round((correct / (e.questions.length || 1)) * 100);
+            const score = mcQuestions.length > 0 ? Math.round((correct / mcQuestions.length) * 100) : 100;
             const res: ExamResult = {
               studentId: currentUser.id,
               studentName: currentUser.name,
@@ -397,7 +400,7 @@ export default function App() {
               flaggedQuestions: flagged || [],
               score,
               maxScore: 100,
-              isPassed: score >= e.passingScore,
+              isPassed: score >= (e.passingScore || 75),
               violationsCount,
             };
             const cleanResults = (e.results || []).filter((r) => r.studentId !== currentUser.id);
@@ -602,6 +605,15 @@ export default function App() {
       };
       setMaterials((prev) => [fallback, ...prev]);
     }
+  };
+
+  const handleDeleteMaterial = async (id: string) => {
+    try {
+      await api.deleteMaterial(id);
+    } catch (err) {
+      console.error('Failed to delete material:', err);
+    }
+    setMaterials((prev) => prev.filter((m) => m.id !== id));
   };
 
   // --- Handlers: Kuis Selesai & Buat Kuis Baru (Guru) ---
@@ -996,7 +1008,9 @@ export default function App() {
               quizzes={quizzes}
               assessments={assessments}
               subjects={subjects}
+              classes={classes}
               onNavigateTab={setActiveTab}
+              onUpdateExam={handleUpdateExam}
             />
           )}
 
@@ -1021,6 +1035,7 @@ export default function App() {
               userRole={currentUser.role}
               subjects={subjects}
               onCreateMaterial={handleCreateMaterial}
+              onDeleteMaterial={handleDeleteMaterial}
               onOpenSandboxWithCode={handleOpenSandboxWithCode}
             />
           )}
