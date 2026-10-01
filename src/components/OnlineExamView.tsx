@@ -30,13 +30,20 @@ import {
   Megaphone,
   Filter,
   Download,
-  Printer
+  Printer,
+  MapPin
 } from 'lucide-react';
-import { OnlineExam, ExamQuestion, UserRole, ExamResult, Subject, ClassRoom } from '../types';
+import { User, OnlineExam, ExamQuestion, UserRole, ExamResult, Subject, ClassRoom } from '../types';
 import { INITIAL_USERS_ROSTER } from '../data/schoolData';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+  getSignatoriesInfo,
+  getCachedPrintLocation,
+  detectPrintLocation,
+  setManualPrintLocation
+} from '../utils/locationHelper';
 import {
   getDeadlineStatus,
   getDefaultDateTimeInput,
@@ -48,6 +55,7 @@ interface OnlineExamViewProps {
   userRole: UserRole;
   subjects?: Subject[];
   classes?: ClassRoom[];
+  currentUser?: User;
   currentStudentId: string;
   currentStudentName: string;
   currentStudentClass: string;
@@ -67,6 +75,7 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
   userRole,
   subjects = [],
   classes = [],
+  currentUser,
   currentStudentId,
   currentStudentName,
   currentStudentClass,
@@ -118,6 +127,15 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
   const [showOverallRecapModal, setShowOverallRecapModal] = useState<boolean>(false);
   const [overallRecapExamFilter, setOverallRecapExamFilter] = useState<string>('all');
   const [overallRecapClassFilter, setOverallRecapClassFilter] = useState<string>('all');
+
+  // Lokasi Pencetakan Rekap Ujian Dinamis
+  const [printLocation, setPrintLocation] = useState<string>(getCachedPrintLocation());
+
+  useEffect(() => {
+    detectPrintLocation().then((loc) => {
+      if (loc) setPrintLocation(loc);
+    });
+  }, []);
 
   // Teacher Create Exam Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -397,8 +415,11 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
       ];
     });
 
-    // Buat worksheet dan workbook Excel (.xlsx) dengan sel kotak-kotak terpisah
-    const wsData = [headers, ...dataRows];
+    // Buat worksheet dan workbook Excel (.xlsx) murni data tabel (hanya header Gambar 1 dan isi data siswa)
+    const wsData = [
+      headers,
+      ...dataRows
+    ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
     // Atur lebar kolom (auto-fit columns width)
@@ -519,7 +540,11 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
       return;
     }
 
-    const wsData = [headers, ...allDataRows];
+    // Buat worksheet dan workbook Excel (.xlsx) murni data tabel (hanya header Gambar 1 dan isi data siswa)
+    const wsData = [
+      headers,
+      ...allDataRows
+    ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
     ws['!cols'] = [
@@ -575,25 +600,20 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
       return;
     }
 
-    const todayDate = new Date().toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-
+    const signatories = getSignatoriesInfo(currentUser, printLocation);
     const doc = new jsPDF('landscape', 'mm', 'a4');
 
-    // 1. KOP SURAT RESMI
+    // 1. KOP SURAT RESMI SMK CITRA NEGARA
     doc.setFont('times', 'bold');
     doc.setFontSize(10);
     doc.text('PEMERINTAH DAERAH PROVINSI JAWA BARAT', 148, 12, { align: 'center' });
     doc.text('DINAS PENDIDIKAN CABANG DINAS WILAYAH VII', 148, 17, { align: 'center' });
     doc.setFontSize(13);
-    doc.text('SMK TARUNA BANGSA KOTA BEKASI', 148, 23, { align: 'center' });
+    doc.text(`${signatories.schoolName} KOTA DEPOK`, 148, 23, { align: 'center' });
     doc.setFont('times', 'normal');
     doc.setFontSize(8);
     doc.text('Kompetensi Keahlian: Rekayasa Perangkat Lunak & Gim (PPLG) • TJKT • DKV • MPLB • Akuntansi', 148, 27, { align: 'center' });
-    doc.text('Jl. Kaliabang Tengah No. 8, Medan Satria, Kota Bekasi 17132 | Telp: (021) 8899-7711 | NPSN: 69786445', 148, 31, { align: 'center' });
+    doc.text(`${signatories.schoolAddress} | Telp: ${signatories.schoolPhone} | NPSN: ${signatories.schoolNpsn}`, 148, 31, { align: 'center' });
 
     doc.setLineWidth(0.8);
     doc.line(14, 33, 283, 33);
@@ -630,9 +650,9 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
     doc.setFont('times', 'normal');
     doc.setFontSize(8.5);
     doc.text(`Rombel / Kelas : ${classLabel}`, 14, 50);
-    doc.text(`Guru Pengampu  : ${exam.teacher || 'Guru Pengampu'}`, 14, 54);
+    doc.text(`Guru Pengampu  : ${exam.teacher || signatories.guru.name}`, 14, 54);
     doc.text(`Status Akses Siswa : ${exam.isScoreAnnounced ? 'Sudah Diumumkan' : 'Belum Diumumkan (Rahasia)'}`, 180, 50);
-    doc.text(`Tanggal Cetak      : ${todayDate}`, 180, 54);
+    doc.text(`Lokasi & Tanggal   : ${signatories.printLocation}, ${signatories.printDateIndo}`, 180, 54);
 
     doc.setFont('times', 'bold');
     doc.text(
@@ -673,7 +693,8 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
       ];
     });
 
-    autoTable(doc, {
+    const runAutoTable = typeof autoTable === 'function' ? autoTable : (autoTable as any).default;
+    runAutoTable(doc, {
       startY: 63,
       head: headers,
       body: body,
@@ -702,7 +723,7 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
         9: { cellWidth: 35 }
       },
       margin: { left: 14, right: 14 },
-      didParseCell: (data) => {
+      didParseCell: (data: any) => {
         if (data.section === 'body' && data.column.index === 6) {
           if (data.cell.raw === 'LULUS KKM') {
             data.cell.styles.fontStyle = 'bold';
@@ -715,25 +736,39 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
       }
     });
 
-    // 5. TANDA TANGAN
+    // 5. TANDA TANGAN (3 PIHAK: KEPALA SEKOLAH, KURIKULUM, GURU)
     const lastY = (doc as any).lastAutoTable?.finalY || 150;
-    const signY = lastY + 14 > 175 ? 180 : lastY + 14;
+    let signY = lastY + 12;
+    if (signY + 32 > 195) {
+      doc.addPage();
+      signY = 25;
+    }
 
     doc.setFont('times', 'normal');
     doc.setFontSize(8.5);
+    // Kolom Kiri: Kepala Sekolah SMK CITRA NEGARA
     doc.text('Mengetahui,', 45, signY, { align: 'center' });
-    doc.text('Kepala SMK Taruna Bangsa', 45, signY + 4, { align: 'center' });
+    doc.text(signatories.kepsek.roleLabel, 45, signY + 4, { align: 'center' });
     doc.setFont('times', 'bold');
-    doc.text('Drs. H. Mulyadi, M.Pd.', 45, signY + 22, { align: 'center' });
+    doc.text(signatories.kepsek.name, 45, signY + 22, { align: 'center' });
     doc.setFont('times', 'normal');
-    doc.text('NIP. 19680512 199303 1 004', 45, signY + 26, { align: 'center' });
+    doc.text(`NIP. ${signatories.kepsek.nip}`, 45, signY + 26, { align: 'center' });
 
-    doc.text(`Kota Bekasi, ${todayDate}`, 240, signY, { align: 'center' });
-    doc.text('Guru Mata Pelajaran,', 240, signY + 4, { align: 'center' });
+    // Kolom Tengah: Waka. Bidang Kurikulum SMK CITRA NEGARA
+    doc.text('Menyetujui / Memeriksa,', 148, signY, { align: 'center' });
+    doc.text(signatories.kurikulum.roleLabel, 148, signY + 4, { align: 'center' });
     doc.setFont('times', 'bold');
-    doc.text(exam.teacher || 'Guru Pengampu', 240, signY + 22, { align: 'center' });
+    doc.text(signatories.kurikulum.name, 148, signY + 22, { align: 'center' });
     doc.setFont('times', 'normal');
-    doc.text(`NIP/ID. ${exam.code}`, 240, signY + 26, { align: 'center' });
+    doc.text(`NIP. ${signatories.kurikulum.nip}`, 148, signY + 26, { align: 'center' });
+
+    // Kolom Kanan: Lokasi Pencetak & Guru Pengampu / Yang Mencetak
+    doc.text(`${signatories.printLocation}, ${signatories.printDateIndo}`, 245, signY, { align: 'center' });
+    doc.text(exam.teacher || signatories.guru.roleLabel, 245, signY + 4, { align: 'center' });
+    doc.setFont('times', 'bold');
+    doc.text(exam.teacher || signatories.guru.name, 245, signY + 22, { align: 'center' });
+    doc.setFont('times', 'normal');
+    doc.text(`NIP/ID. ${signatories.guru.nip}`, 245, signY + 26, { align: 'center' });
 
     const safeTitle = exam.title.replace(/[^a-zA-Z0-9]/g, '_');
     const safeClass = targetClassFilter === 'all' ? 'Semua_Kelas' : targetClassFilter.replace(/[^a-zA-Z0-9]/g, '_');
@@ -746,25 +781,20 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
       filteredExams = exams.filter((e) => e.id === selectedExamId);
     }
 
-    const todayDate = new Date().toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-
+    const signatories = getSignatoriesInfo(currentUser, printLocation);
     const doc = new jsPDF('landscape', 'mm', 'a4');
 
-    // Kop Surat
+    // Kop Surat Resmi SMK CITRA NEGARA
     doc.setFont('times', 'bold');
     doc.setFontSize(10);
     doc.text('PEMERINTAH DAERAH PROVINSI JAWA BARAT', 148, 12, { align: 'center' });
     doc.text('DINAS PENDIDIKAN CABANG DINAS WILAYAH VII', 148, 17, { align: 'center' });
     doc.setFontSize(13);
-    doc.text('SMK TARUNA BANGSA KOTA BEKASI', 148, 23, { align: 'center' });
+    doc.text(`${signatories.schoolName} KOTA DEPOK`, 148, 23, { align: 'center' });
     doc.setFont('times', 'normal');
     doc.setFontSize(8);
     doc.text('Kompetensi Keahlian: Rekayasa Perangkat Lunak & Gim (PPLG) • TJKT • DKV • MPLB • Akuntansi', 148, 27, { align: 'center' });
-    doc.text('Jl. Kaliabang Tengah No. 8, Medan Satria, Kota Bekasi 17132 | Telp: (021) 8899-7711 | NPSN: 69786445', 148, 31, { align: 'center' });
+    doc.text(`${signatories.schoolAddress} | Telp: ${signatories.schoolPhone} | NPSN: ${signatories.schoolNpsn}`, 148, 31, { align: 'center' });
 
     doc.setLineWidth(0.8);
     doc.line(14, 33, 283, 33);
@@ -844,7 +874,7 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
     doc.setFontSize(8.5);
     doc.text(`Filter Rombel: ${classLabel}`, 14, 50);
     doc.text(`Filter Ujian : ${selectedExamId === 'all' ? 'Seluruh Ulangan CBT' : 'Ujian Terpilih'}`, 14, 54);
-    doc.text(`Tanggal Cetak: ${todayDate}`, 180, 50);
+    doc.text(`Lokasi & Tanggal : ${signatories.printLocation}, ${signatories.printDateIndo}`, 180, 50);
     doc.text(`Total Baris Nilai: ${grandTotal} Data Siswa`, 180, 54);
 
     doc.setFont('times', 'bold');
@@ -854,7 +884,8 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
       60
     );
 
-    autoTable(doc, {
+    const runAutoTable = typeof autoTable === 'function' ? autoTable : (autoTable as any).default;
+    runAutoTable(doc, {
       startY: 63,
       head: headers,
       body: body,
@@ -884,7 +915,7 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
         10: { halign: 'center', cellWidth: 18 }
       },
       margin: { left: 14, right: 14 },
-      didParseCell: (data) => {
+      didParseCell: (data: any) => {
         if (data.section === 'body' && data.column.index === 9) {
           if (data.cell.raw === 'LULUS KKM') {
             data.cell.styles.fontStyle = 'bold';
@@ -898,23 +929,37 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
     });
 
     const lastY = (doc as any).lastAutoTable?.finalY || 150;
-    const signY = lastY + 14 > 175 ? 180 : lastY + 14;
+    let signY = lastY + 12;
+    if (signY + 32 > 195) {
+      doc.addPage();
+      signY = 25;
+    }
 
     doc.setFont('times', 'normal');
     doc.setFontSize(8.5);
+    // Kolom Kiri: Kepala Sekolah SMK CITRA NEGARA
     doc.text('Mengetahui,', 45, signY, { align: 'center' });
-    doc.text('Kepala SMK Taruna Bangsa', 45, signY + 4, { align: 'center' });
+    doc.text(signatories.kepsek.roleLabel, 45, signY + 4, { align: 'center' });
     doc.setFont('times', 'bold');
-    doc.text('Drs. H. Mulyadi, M.Pd.', 45, signY + 22, { align: 'center' });
+    doc.text(signatories.kepsek.name, 45, signY + 22, { align: 'center' });
     doc.setFont('times', 'normal');
-    doc.text('NIP. 19680512 199303 1 004', 45, signY + 26, { align: 'center' });
+    doc.text(`NIP. ${signatories.kepsek.nip}`, 45, signY + 26, { align: 'center' });
 
-    doc.text(`Kota Bekasi, ${todayDate}`, 240, signY, { align: 'center' });
-    doc.text('Koordinator Ulangan & Kurikulum,', 240, signY + 4, { align: 'center' });
+    // Kolom Tengah: Waka. Bidang Kurikulum SMK CITRA NEGARA
+    doc.text('Menyetujui / Memeriksa,', 148, signY, { align: 'center' });
+    doc.text(signatories.kurikulum.roleLabel, 148, signY + 4, { align: 'center' });
     doc.setFont('times', 'bold');
-    doc.text('Hendra Setiawan, M.Kom.', 240, signY + 22, { align: 'center' });
+    doc.text(signatories.kurikulum.name, 148, signY + 22, { align: 'center' });
     doc.setFont('times', 'normal');
-    doc.text('NIP. 19880415 201403 1 002', 240, signY + 26, { align: 'center' });
+    doc.text(`NIP. ${signatories.kurikulum.nip}`, 148, signY + 26, { align: 'center' });
+
+    // Kolom Kanan: Lokasi Pencetak & Guru Yang Mencetak
+    doc.text(`${signatories.printLocation}, ${signatories.printDateIndo}`, 245, signY, { align: 'center' });
+    doc.text(signatories.guru.roleLabel, 245, signY + 4, { align: 'center' });
+    doc.setFont('times', 'bold');
+    doc.text(signatories.guru.name, 245, signY + 22, { align: 'center' });
+    doc.setFont('times', 'normal');
+    doc.text(`NIP/ID. ${signatories.guru.nip}`, 245, signY + 26, { align: 'center' });
 
     const safeClass = targetClassFilter === 'all' ? 'Semua_Rombel' : targetClassFilter.replace(/[^a-zA-Z0-9]/g, '_');
     doc.save(`Rekapitulasi_Nilai_CBT_${safeClass}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -1748,7 +1793,21 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-700">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span className="text-[11px] font-bold text-slate-500">Lokasi:</span>
+                  <input
+                    type="text"
+                    value={printLocation}
+                    onChange={(e) => {
+                      setPrintLocation(e.target.value);
+                      setManualPrintLocation(e.target.value);
+                    }}
+                    className="font-bold bg-transparent border-b border-dashed border-slate-400 focus:outline-none focus:border-indigo-600 w-24 text-slate-900 text-xs"
+                    title="Lokasi pencetak dokumen (tersimpan otomatis & sinkron ke Excel/PDF)"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => handleExportExamResultsToExcel(viewingResultsExam, resultsClassFilter)}
@@ -2546,7 +2605,21 @@ export const OnlineExamView: React.FC<OnlineExamViewProps> = ({
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-700">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="text-[11px] font-bold text-slate-500">Lokasi:</span>
+                    <input
+                      type="text"
+                      value={printLocation}
+                      onChange={(e) => {
+                        setPrintLocation(e.target.value);
+                        setManualPrintLocation(e.target.value);
+                      }}
+                      className="font-bold bg-transparent border-b border-dashed border-slate-400 focus:outline-none focus:border-indigo-600 w-24 text-slate-900 text-xs"
+                      title="Lokasi pencetak dokumen (tersimpan otomatis & sinkron ke Excel/PDF)"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleExportOverallRecapToExcel(overallRecapExamFilter, overallRecapClassFilter)}

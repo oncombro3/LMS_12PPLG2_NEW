@@ -33,7 +33,8 @@ import {
   Check,
   CheckSquare,
   XCircle,
-  AlertTriangle
+  AlertTriangle,
+  MapPin
 } from 'lucide-react';
 import {
   User,
@@ -50,6 +51,12 @@ import { INITIAL_USERS_ROSTER } from '../data/schoolData';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+  getSignatoriesInfo,
+  getCachedPrintLocation,
+  detectPrintLocation,
+  setManualPrintLocation
+} from '../utils/locationHelper';
 
 export interface StudentHistoryItem {
   id: string;
@@ -137,6 +144,16 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
   const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
   const [printClassFilter, setPrintClassFilter] = useState<string>('all');
   const [printCategoryFilter, setPrintCategoryFilter] = useState<'all' | 'exam' | 'task' | 'assessment'>('all');
+
+  // Lokasi Pencetak Dokumen (Dinamis sesuai lokasi pengguna / reverse geocode)
+  const [printLocation, setPrintLocation] = useState<string>(getCachedPrintLocation());
+  const [isEditingLocation, setIsEditingLocation] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    detectPrintLocation().then((loc) => {
+      if (loc) setPrintLocation(loc);
+    });
+  }, []);
 
   // ==========================================
   // 1. DATA SISWA: NORMALISASI RIWAYAT PRIBADI
@@ -686,8 +703,11 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
       ];
     });
 
-    // Buat worksheet dan workbook Excel (.xlsx) dengan sel kotak-kotak terpisah
-    const wsData = [headers, ...dataRows];
+    // Buat worksheet dan workbook Excel (.xlsx) murni data tabel (hanya header dan isi data siswa sesuai permintaan)
+    const wsData = [
+      headers,
+      ...dataRows
+    ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
     // Atur lebar kolom (auto-fit columns width)
@@ -792,25 +812,20 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
       return;
     }
 
-    const todayDate = new Date().toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-
+    const signatories = getSignatoriesInfo(currentUser, printLocation);
     const doc = new jsPDF('landscape', 'mm', 'a4');
 
-    // 1. KOP SURAT
+    // 1. KOP SURAT RESMI SMK CITRA NEGARA
     doc.setFont('times', 'bold');
     doc.setFontSize(10);
     doc.text('PEMERINTAH DAERAH PROVINSI JAWA BARAT', 148, 12, { align: 'center' });
     doc.text('DINAS PENDIDIKAN CABANG DINAS WILAYAH VII', 148, 17, { align: 'center' });
     doc.setFontSize(13);
-    doc.text('SMK TARUNA BANGSA KOTA BEKASI', 148, 23, { align: 'center' });
+    doc.text(`${signatories.schoolName} KOTA DEPOK`, 148, 23, { align: 'center' });
     doc.setFont('times', 'normal');
     doc.setFontSize(8);
     doc.text('Kompetensi Keahlian: Rekayasa Perangkat Lunak & Gim (PPLG) • TJKT • DKV • MPLB • Akuntansi', 148, 27, { align: 'center' });
-    doc.text('Jl. Kaliabang Tengah No. 8, Medan Satria, Kota Bekasi 17132 | Telp: (021) 8899-7711 | NPSN: 69786445', 148, 31, { align: 'center' });
+    doc.text(`${signatories.schoolAddress} | Telp: ${signatories.schoolPhone} | NPSN: ${signatories.schoolNpsn}`, 148, 31, { align: 'center' });
 
     // Garis Kop Surat
     doc.setLineWidth(0.8);
@@ -841,8 +856,8 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
 
     doc.text(`Rombel / Kelas : ${classLabel}`, 14, 50);
     doc.text(`Kategori : ${catLabel}`, 14, 54);
-    doc.text(`Dicetak Oleh : ${currentUser.name} (${currentUser.role.toUpperCase()})`, 180, 50);
-    doc.text(`Tanggal Cetak : ${todayDate}`, 180, 54);
+    doc.text(`Dicetak Oleh : ${signatories.guru.name}`, 180, 50);
+    doc.text(`Lokasi & Tanggal : ${signatories.printLocation}, ${signatories.printDateIndo}`, 180, 54);
 
     // Ringkasan Statistik
     doc.setFont('times', 'bold');
@@ -877,7 +892,8 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
       ];
     });
 
-    autoTable(doc, {
+    const runAutoTable = typeof autoTable === 'function' ? autoTable : (autoTable as any).default;
+    runAutoTable(doc, {
       startY: 63,
       head: tableHeaders,
       body: tableBody,
@@ -907,7 +923,7 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
         10: { cellWidth: 27 }
       },
       margin: { left: 14, right: 14 },
-      didParseCell: (data) => {
+      didParseCell: (data: any) => {
         if (data.section === 'body' && data.column.index === 9) {
           if (data.cell.raw === 'TUNTAS') {
             data.cell.styles.fontStyle = 'bold';
@@ -920,25 +936,39 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
       }
     });
 
-    // 5. TANDA TANGAN
+    // 5. TANDA TANGAN (3 KOLOM: KEPALA SEKOLAH, KURIKULUM, GURU PENCETAK)
     const lastY = (doc as any).lastAutoTable?.finalY || 150;
-    const signY = lastY + 14 > 175 ? 180 : lastY + 14;
+    let signY = lastY + 12;
+    if (signY + 32 > 195) {
+      doc.addPage();
+      signY = 25;
+    }
 
     doc.setFont('times', 'normal');
     doc.setFontSize(8.5);
+    // Kolom Kiri: Kepala Sekolah SMK CITRA NEGARA
     doc.text('Mengetahui,', 45, signY, { align: 'center' });
-    doc.text('Kepala SMK Taruna Bangsa', 45, signY + 4, { align: 'center' });
+    doc.text(signatories.kepsek.roleLabel, 45, signY + 4, { align: 'center' });
     doc.setFont('times', 'bold');
-    doc.text('Drs. H. Mulyadi, M.Pd.', 45, signY + 22, { align: 'center' });
+    doc.text(signatories.kepsek.name, 45, signY + 22, { align: 'center' });
     doc.setFont('times', 'normal');
-    doc.text('NIP. 19680512 199303 1 004', 45, signY + 26, { align: 'center' });
+    doc.text(`NIP. ${signatories.kepsek.nip}`, 45, signY + 26, { align: 'center' });
 
-    doc.text(`Kota Bekasi, ${todayDate}`, 240, signY, { align: 'center' });
-    doc.text('Guru Mata Pelajaran / Kurikulum,', 240, signY + 4, { align: 'center' });
+    // Kolom Tengah: Waka. Bidang Kurikulum
+    doc.text('Menyetujui / Memeriksa,', 148, signY, { align: 'center' });
+    doc.text(signatories.kurikulum.roleLabel, 148, signY + 4, { align: 'center' });
     doc.setFont('times', 'bold');
-    doc.text(currentUser.name, 240, signY + 22, { align: 'center' });
+    doc.text(signatories.kurikulum.name, 148, signY + 22, { align: 'center' });
     doc.setFont('times', 'normal');
-    doc.text(`ID/NIP. ${currentUser.id.toUpperCase()}`, 240, signY + 26, { align: 'center' });
+    doc.text(`NIP. ${signatories.kurikulum.nip}`, 148, signY + 26, { align: 'center' });
+
+    // Kolom Kanan: Lokasi Pencetak & Guru Yang Mencetak
+    doc.text(`${signatories.printLocation}, ${signatories.printDateIndo}`, 245, signY, { align: 'center' });
+    doc.text(signatories.guru.roleLabel, 245, signY + 4, { align: 'center' });
+    doc.setFont('times', 'bold');
+    doc.text(signatories.guru.name, 245, signY + 22, { align: 'center' });
+    doc.setFont('times', 'normal');
+    doc.text(`NIP/ID. ${signatories.guru.nip}`, 245, signY + 26, { align: 'center' });
 
     const safeClass = printClassFilter === 'all' ? 'Semua_Rombel' : printClassFilter.replace(/[^a-zA-Z0-9]/g, '_');
     const filename = `Rekap_Nilai_Siswa_${safeClass}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -978,10 +1008,10 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
     doc.text('PEMERINTAH DAERAH PROVINSI JAWA BARAT', 105, 12, { align: 'center' });
     doc.text('DINAS PENDIDIKAN CABANG DINAS WILAYAH VII', 105, 17, { align: 'center' });
     doc.setFontSize(13);
-    doc.text('SMK TARUNA BANGSA KOTA BEKASI', 105, 23, { align: 'center' });
+    doc.text('SMK CITRA NEGARA KOTA DEPOK', 105, 23, { align: 'center' });
     doc.setFont('times', 'normal');
     doc.setFontSize(8);
-    doc.text('Jl. Kaliabang Tengah No. 8, Medan Satria, Kota Bekasi | Telp: (021) 8899-7711', 105, 27, { align: 'center' });
+    doc.text('Jl. Tanah Baru No. 100, Beji, Kota Depok | Telp: (021) 7721-3344 | NPSN: 20268845', 105, 27, { align: 'center' });
 
     doc.setLineWidth(0.8);
     doc.line(14, 29, 196, 29);
@@ -1084,13 +1114,41 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
               </p>
             </div>
 
-            {/* Action Buttons: Export Excel & Print */}
+            {/* Lokasi Pencetak Dinamis & Action Buttons: Export Excel & Print */}
             <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <div className="flex items-center gap-1.5 bg-white/10 hover:bg-white/15 transition border border-white/20 px-3 py-2.5 rounded-2xl text-xs text-white">
+                <MapPin className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+                <span className="text-[11px] text-slate-300">Lokasi:</span>
+                {isEditingLocation ? (
+                  <input
+                    type="text"
+                    value={printLocation}
+                    onChange={(e) => {
+                      setPrintLocation(e.target.value);
+                      setManualPrintLocation(e.target.value);
+                    }}
+                    onBlur={() => setIsEditingLocation(false)}
+                    onKeyDown={(e) => e.key === 'Enter' && setIsEditingLocation(false)}
+                    autoFocus
+                    className="px-2 py-0.5 bg-slate-900 text-white rounded-lg text-xs border border-emerald-400 focus:outline-none w-28"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingLocation(true)}
+                    className="font-bold underline decoration-dashed hover:text-emerald-300 cursor-pointer flex items-center gap-1"
+                    title="Klik untuk mengubah lokasi pencetak dokumen (otomatis tersimpan & sinkron ke Excel/PDF)"
+                  >
+                    {printLocation}
+                  </button>
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={() => handleExportTeacherRecapToExcel(teacherSelectedClass)}
                 className="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-2xl text-xs transition shadow-lg shadow-emerald-950/40 flex items-center gap-2 cursor-pointer border border-emerald-400/30"
-                title="Download lembar rekap nilai siswa dalam format Excel (.xlsx)"
+                title="Download lembar rekap nilai siswa dalam format Excel (.xlsx) lengkap dengan tanda tangan pengesahan"
               >
                 <Download className="w-4 h-4" />
                 <span>Export Nilai ke Excel</span>
@@ -1926,6 +1984,21 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                     </select>
                   </div>
 
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 p-1 rounded-xl text-xs">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600 pl-1" />
+                    <span className="text-[11px] font-bold text-slate-500">Lokasi:</span>
+                    <input
+                      type="text"
+                      value={printLocation}
+                      onChange={(e) => {
+                        setPrintLocation(e.target.value);
+                        setManualPrintLocation(e.target.value);
+                      }}
+                      className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:ring-1 focus:ring-indigo-500 w-28"
+                      title="Ubah lokasi pencetakan"
+                    />
+                  </div>
+
                   <button
                     type="button"
                     onClick={handleDownloadTeacherRecapPdf}
@@ -1933,17 +2006,7 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                     title="Unduh langsung berkas dokumen PDF resmi (.pdf)"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Unduh File PDF (.pdf)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleExecutePrint}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition flex items-center gap-2 shadow-sm shadow-indigo-200 cursor-pointer"
-                    title="Cetak dokumen langsung lewat dialog print browser atau printer"
-                  >
-                    <Printer className="w-4 h-4" />
-                    <span>Cetak via Dialog Print</span>
+                    <span>Cetak / Unduh PDF (.pdf)</span>
                   </button>
 
                   <button
@@ -1963,7 +2026,7 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                   className="bg-white w-full max-w-[850px] min-h-[1100px] p-8 sm:p-12 shadow-2xl border border-slate-300 text-black text-xs space-y-4 rounded-xs"
                   style={{ fontFamily: "'Times New Roman', Times, serif" }}
                 >
-                  {/* 1. KOP SURAT RESMI */}
+                  {/* 1. KOP SURAT RESMI SMK CITRA NEGARA */}
                   <div className="border-b-[3px] border-black pb-2 text-center">
                     <div className="border-b border-black pb-1 mb-1">
                       <h3 className="font-bold text-sm tracking-wide uppercase m-0 leading-tight">
@@ -1973,16 +2036,16 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                         DINAS PENDIDIKAN CABANG DINAS WILAYAH VII
                       </h2>
                       <h1 className="font-black text-xl tracking-wide uppercase m-0 leading-tight mt-1 text-slate-900">
-                        SMK TARUNA BANGSA KOTA BEKASI
+                        SMK CITRA NEGARA KOTA DEPOK
                       </h1>
                       <p className="text-[11px] font-medium text-slate-800 m-0 mt-1">
                         Kompetensi Keahlian: Rekayasa Perangkat Lunak & Gim (PPLG) • Teknik Komputer & Jaringan (TJKT) • DKV • MPLB • Akuntansi
                       </p>
                       <p className="text-[10px] text-slate-600 m-0">
-                        Jl. Kaliabang Tengah No. 8, Medan Satria, Kota Bekasi, Jawa Barat 17132 | Telp: (021) 8899-7711
+                        Jl. Tanah Baru No. 100, Beji, Kota Depok, Jawa Barat 16421 | Telp: (021) 7721-3344
                       </p>
                       <p className="text-[10px] text-slate-600 m-0">
-                        NPSN: 69786445 | NSS: 402026501099 | Website: www.smktarunabangsa.sch.id | Email: info@smktarunabangsa.sch.id
+                        NPSN: 20268845 | NSS: 402026501099 | Website: www.smkcitranegara.sch.id | Email: info@smkcitranegara.sch.id
                       </p>
                     </div>
                   </div>
@@ -2002,7 +2065,7 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                     <div className="space-y-0.5">
                       <div>
                         <span className="font-bold inline-block w-36">Satuan Pendidikan</span>
-                        <span>: SMK Taruna Bangsa Kota Bekasi</span>
+                        <span>: SMK CITRA NEGARA</span>
                       </div>
                       <div>
                         <span className="font-bold inline-block w-36">Rombel / Kelas</span>
@@ -2023,8 +2086,8 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                         <span>: <strong>75</strong></span>
                       </div>
                       <div>
-                        <span className="font-bold inline-block w-36">Tanggal Dokumen</span>
-                        <span>: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                        <span className="font-bold inline-block w-36">Lokasi & Tanggal</span>
+                        <span>: <strong>{printLocation}</strong>, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                       </div>
                     </div>
                   </div>
@@ -2101,31 +2164,43 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                     </table>
                   </div>
 
-                  {/* 6. LEMBAR PENGESAHAN & TANDA TANGAN */}
-                  <div className="pt-4 page-break-inside-avoid">
-                    <table className="w-full text-xs text-center border-none">
-                      <tbody>
-                        <tr>
-                          <td className="w-1/2 align-top pb-1 border-none">
-                            <p className="m-0 text-slate-700">Mengetahui,</p>
-                            <p className="m-0 font-bold">Kepala Sekolah SMK Taruna Bangsa</p>
-                            <div className="h-16" />
-                            <p className="m-0 font-bold underline text-sm">Dr. H. Ahmad Marzuki, M.Pd.</p>
-                            <p className="m-0 text-[11px] text-slate-600">NIP. 19750812 200212 1 003</p>
-                          </td>
-                          <td className="w-1/2 align-top pb-1 border-none">
-                            <p className="m-0 text-slate-700">
-                              Bekasi, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                            </p>
-                            <p className="m-0 font-bold">Guru Pengampu Mata Pelajaran</p>
-                            <div className="h-16" />
-                            <p className="m-0 font-bold underline text-sm">{currentUser.name}</p>
-                            <p className="m-0 text-[11px] text-slate-600">NIP. 19880415 201403 1 002</p>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                  {/* 6. LEMBAR PENGESAHAN & TANDA TANGAN 3 PIHAK: KEPALA SEKOLAH, KURIKULUM, GURU */}
+                  {(() => {
+                    const sigs = getSignatoriesInfo(currentUser, printLocation);
+                    return (
+                      <div className="pt-4 page-break-inside-avoid">
+                        <table className="w-full text-xs text-center border-none">
+                          <tbody>
+                            <tr>
+                              <td className="w-1/3 align-top pb-1 border-none">
+                                <p className="m-0 text-slate-700">Mengetahui,</p>
+                                <p className="m-0 font-bold">{sigs.kepsek.roleLabel}</p>
+                                <div className="h-16" />
+                                <p className="m-0 font-bold underline text-sm">{sigs.kepsek.name}</p>
+                                <p className="m-0 text-[11px] text-slate-600">NIP. {sigs.kepsek.nip}</p>
+                              </td>
+                              <td className="w-1/3 align-top pb-1 border-none">
+                                <p className="m-0 text-slate-700">Menyetujui / Memeriksa,</p>
+                                <p className="m-0 font-bold">{sigs.kurikulum.roleLabel}</p>
+                                <div className="h-16" />
+                                <p className="m-0 font-bold underline text-sm">{sigs.kurikulum.name}</p>
+                                <p className="m-0 text-[11px] text-slate-600">NIP. {sigs.kurikulum.nip}</p>
+                              </td>
+                              <td className="w-1/3 align-top pb-1 border-none">
+                                <p className="m-0 text-slate-700">
+                                  {sigs.printLocation}, {sigs.printDateIndo}
+                                </p>
+                                <p className="m-0 font-bold">{sigs.guru.roleLabel}</p>
+                                <div className="h-16" />
+                                <p className="m-0 font-bold underline text-sm">{sigs.guru.name}</p>
+                                <p className="m-0 text-[11px] text-slate-600">NIP/ID. {sigs.guru.nip}</p>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -2149,16 +2224,7 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                     title="Unduh langsung lembar rekap PDF resmi"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Unduh Dokumen PDF (.pdf)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleExecutePrint}
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition flex items-center gap-2 shadow-sm shadow-indigo-200 cursor-pointer"
-                    title="Cetak lewat dialog browser atau printer fisik"
-                  >
-                    <Printer className="w-4 h-4" />
-                    <span>Cetak via Dialog Print</span>
+                    <span>Cetak / Unduh Dokumen PDF (.pdf)</span>
                   </button>
                 </div>
               </div>

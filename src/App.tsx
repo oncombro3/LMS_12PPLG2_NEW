@@ -974,6 +974,7 @@ export default function App() {
               userRole={currentUser.role}
               subjects={subjects}
               classes={classes}
+              currentUser={currentUser}
               currentStudentId={currentUser.id}
               currentStudentName={currentUser.name}
               currentStudentClass={currentUser.class}
